@@ -5,6 +5,7 @@ grant or call a provider. Its credential authorizes only this operation.
 """
 import os
 import re
+import uuid
 
 from .common import digest, encoded, require, sha
 from .services import post_json
@@ -15,7 +16,8 @@ def call_request(state, grant, phase, index, request_hash):
     job_id=os.environ.get('AUTOSE_JOB_ID') if os.environ.get('GITHUB_ACTIONS')=='true' else grant['job_id']
     require(job_id==grant['job_id'],'paid job identity mismatch')
     return {'grant_sha':state['trial_grant']['sha'],'sequence':state['trial_grant']['sequence'],
-            'identity':grant['identity'],'phase':phase,'job_id':job_id,'call_index':index,'request_sha256':request_hash}
+            'identity':grant['identity'],'phase':phase,'job_id':job_id,'call_index':index,'request_sha256':request_hash,
+            'consumer_nonce':uuid.uuid4().hex}
 
 
 def slot_name(request):
@@ -25,7 +27,8 @@ def slot_name(request):
 def validate_request(ledger, config, request):
     t=preflight(config)
     require(isinstance(request,dict),'invalid consumption request')
-    require(set(request)=={'grant_sha','sequence','identity','phase','job_id','call_index','request_sha256'},'unexpected consumption fields')
+    require(set(request)=={'grant_sha','sequence','identity','phase','job_id','call_index','request_sha256','consumer_nonce'},'unexpected consumption fields')
+    require(isinstance(request['consumer_nonce'],str) and re.fullmatch('[a-f0-9]{32}',request['consumer_nonce']),'invalid consumption nonce')
     seq=integer(request.get('sequence'),1,24,'grant sequence')
     commit,grant=ledger.read('grant-'+str(seq))
     require(commit==sha(request.get('grant_sha')) and grant['kind']=='grant','consumption grant mismatch')

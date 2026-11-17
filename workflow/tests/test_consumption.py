@@ -145,6 +145,18 @@ def test_client_verifies_remote_receipt_and_fails_closed_on_service_outage(reser
     assert len(github.refs)==3
 
 
+def test_stale_success_reply_is_not_authority_for_a_fresh_invocation(reserved,monkeypatch):
+    state,cfg,github=reserved
+    ledger=Ledger(github);grant=ledger.verify(state,cfg,'implementation')
+    first=call_request(state,grant,'implementation',1,'c'*64)
+    receipt=ConsumptionAuthority(ledger,cfg).consume(first)
+    second=call_request(state,grant,'implementation',1,'c'*64)
+    assert first['consumer_nonce']!=second['consumer_nonce']
+    monkeypatch.setattr('autose.consumption.post_json',lambda *a,**k:receipt)
+    with pytest.raises(GateError,match='receipt mismatch'):CallConsumer(cfg,ledger).consume(second)
+    assert len(github.refs)==3
+
+
 @pytest.mark.parametrize('auth,path',[('', '/v1/consume'),('Bearer wrong','/v1/consume'),('Bearer fixture-token','/grant')])
 def test_consumption_service_rejects_unauthorized_or_other_operations(auth,path):
     class Authority:

@@ -12,8 +12,12 @@ secret provisioning, protected-main change or merge was performed.
 | **MEDIUM — grants not atomically consumed**, new D6 gap; original trial.py:214 / broker.py:53,56,93 / cli.py:172 | Before provider HTTP, a limited consumption service atomically creates a fixed `consume-N-K` GitHub ref bound to grant/run/job/attempt/phase/request hash. The broker verifies the durable receipt read-only. Duplicate slots, changed payloads, stale checkpoints, uncertain replies and service failures stop. Reserved numerical envelopes remain burned. A consumption-only reference service has ledger write authority without model credentials; reviewer/broker retain read-only GitHub permissions. | `test_consumption.py`: three independent concurrent copies allow one fake model request; timeout/stale replay and lost consume response remain burned; wrong identity/slot/job/hash, unauthorized operations, unavailable service and expiry are denied. | Corrected at the local protocol/backend boundary. Atomic GitHub writes, HTTPS ingress, authentication and deployment have not been exercised hosted. Admins/other contents-write principals must preserve ledger refs. Provider pricing/limits and genuine project evidence remain assumptions. |
 | **LOW — title bypasses body-only scan**, inherited; original engine.py:61,63 / broker.py:134 | Apply the existing credential-pattern screen to every frozen issue field and the complete outbound model context/instructions, before consumption or provider transmission. Failures use constant messages without matched values. | Title/body synthetic-format cases fail admission even with an otherwise matching fixture approval; nested outbound material produces no consumption or model request. | Locally corrected. Regex screening is defense in depth and cannot prove arbitrary content contains no secret. No actual credential was used or transmitted. |
 
-Local result: **394 passed, 0 failed/errors/skips**: 228 unchanged baseline cases
-and 166 controller cases, including 44 new defensive regressions. Existing real
+Consumption receipts also bind a fresh per-invocation nonce. A stale successful
+service reply cannot authorize another worker, even for the same request hash;
+the corresponding defensive test checks this without another model request.
+
+Local result: **395 passed, 0 failed/errors/skips**: 228 unchanged baseline cases
+and 167 controller cases, including 45 new defensive regressions. Existing real
 TinyDB fixture integration still executes 232 cases. Its provider, publisher and
 verification authorities are explicitly test doubles, not hosted evidence. Signed
 protocol tests verify cryptographic binding; they do not establish genuine external
