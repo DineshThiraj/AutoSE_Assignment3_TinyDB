@@ -1,5 +1,13 @@
 # Setup required before a real hosted slice
 
+2026-11-17 correction checkpoint: main now exists and is protected with required
+tinydb-tests; hosted baseline run 44068724918 passed 228 tests and issues #3–#7 exist.
+The infrastructure paragraph below is historical bootstrap evidence, superseded by
+the workspace progress/audit records. For the current disabled, single-issue D6
+controls and missing student evidence, read [D6_TRIAL.md](D6_TRIAL.md). Full runtime
+protection preflight, account evidence, secret verification and paid approval remain
+blockers. No live enablement or paid execution is included in these corrections.
+
 Observed fork: DineshThiraj/AutoSE_Assignment3_TinyDB, public, correct upstream parent, master at the original pin. Issues are disabled, main absent, master unprotected and no rulesets returned. The connected integration reports repository admin/push flags but its collaborator/detailed-protection administrative reads returned 403; gh cannot connect in this environment. No remote changes have been made.
 
 1. Provide a usable authorized administrative route or configure the fork in GitHub Settings. Enable Issues and Actions and permit GitHub Actions to create PRs/reviews where supported. Preserve every existing ref. Do not create another repository or rewrite master.

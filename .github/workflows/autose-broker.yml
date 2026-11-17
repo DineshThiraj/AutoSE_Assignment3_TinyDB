@@ -74,6 +74,7 @@ jobs:
         PYTHONPATH: workflow
         PHASE: ${{ inputs.phase }}
         AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: python -m autose.cli "$PHASE" --input input --output out
     - uses: actions/upload-artifact@v4
       if: always()

@@ -11,6 +11,8 @@ from .common import PIN, REPOSITORY, SECRET_PATTERN, STAGES, digest, encoded, ga
 from .github import APIError
 from .executor import execute
 from .source import diff, replacements, snapshot, source_hash, tests_cover
+from .trial import event_guard, issue_scope_hash
+import os
 
 
 def remaining(state):
@@ -20,6 +22,10 @@ def remaining(state):
 
 
 def admit(event, event_name, github, repository, *, run_id, run_attempt, config, fixture=False):
+    require(not fixture or os.environ.get('GITHUB_ACTIONS') != 'true', 'fixture admission forbidden on hosted runner')
+    if not fixture:
+        live_preflight(config, require_key=False)
+        event_guard(config,event,event_name,run_attempt)
     info = github.verify_repository()
     require(event.get('repository', {}).get('full_name') == REPOSITORY, 'wrong event repository')
     issue = event.get('issue') or {}
@@ -61,18 +67,19 @@ def admit(event, event_name, github, repository, *, run_id, run_attempt, config,
     prs = github.issue_prs(issue['number'])
     require(not prs, 'existing issue PR: reconcile/resume saved attempt; no duplicate model run')
     if not fixture:
-        live_preflight(config, require_key=False)
+        require(issue_scope_hash(issue_data) == config['trial']['issue_hash'], 'approved issue changed')
     source = snapshot(repository)
     state = {
         'repository':REPOSITORY,'pin':PIN,'base_sha':sha(branch['commit']['sha']),
         'run_id':str(run_id),'run_attempt':int(run_attempt),'event_id':str(run_id),
+        'trigger':{'kind':event_name,'actor':actor['login'],'comment_id':event.get('comment',{}).get('id')},
         'attempt_id':f'{run_id}-{run_attempt}','started_at':time.time(),
         'execution_kind':'local_fixture' if fixture else 'hosted',
         'issue':issue_data,'issue_hash':digest(encoded(issue_data)),
         'authorization':{'actor':actor['login'],'permission':permission['permission'],
             'scope':'Only the exact explicit frozen issue scope; inferred requirements are not approved.'},
         'protection_verification':protection,
-        'limits':{'calls':24,'tokens':config.get('token_budget') or 200_000,'seconds':2400},
+        'limits':{'calls':config.get('trial',{}).get('max_calls',24),'tokens':config.get('token_budget') or 200_000,'seconds':2400},
         'usage':{'calls':0,'tokens':0,'unknown':False},'baseline':source,'source':copy.deepcopy(source),
         'round':1,'attempt':1,'route':'requirements','events':[],'gates':{},
     }
