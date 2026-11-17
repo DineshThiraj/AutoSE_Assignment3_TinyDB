@@ -1,0 +1,11 @@
+# Original preserved at the pinned commit and workflow/upstream-reference/ci-workflow.yml.
+name: Upstream CI disabled in assignment fork
+on:
+  workflow_dispatch: {}
+permissions: {}
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "Assignment fork uses isolated autose-ci.yml; upstream CI is disabled."

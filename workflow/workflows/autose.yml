@@ -1,0 +1,694 @@
+name: AutoSE issue to independently reviewed PR
+'on':
+  issues:
+    types:
+    - labeled
+  issue_comment:
+    types:
+    - created
+permissions: {}
+concurrency:
+  group: autose-${{ github.repository }}-${{ github.event.issue.number }}
+  cancel-in-progress: false
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ready: ${{ steps.admit.outputs.ready }}
+      passed: ${{ steps.admit.outputs.passed }}
+      retry: ${{ steps.admit.outputs.retry }}
+      repair: ${{ steps.admit.outputs.repair }}
+      want_tests: ${{ steps.admit.outputs.want_tests }}
+      base_sha: ${{ steps.admit.outputs.base_sha }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - id: admit
+      env:
+        PYTHONPATH: workflow
+        GITHUB_TOKEN: ${{ github.token }}
+      run: python -m autose.cli admission --output out
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: admission-attempt-${{ github.run_attempt }}
+        path: out/
+        if-no-files-found: error
+        retention-days: 90
+  r1_requirements:
+    needs:
+    - admission
+    if: always() && needs.admission.result == 'success' && needs.admission.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: requirements
+      prefix: r1_requirements
+      prior: admission
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1_design:
+    needs:
+    - r1_requirements
+    - admission
+    if: always() && needs.r1_requirements.result == 'success' && needs.r1_requirements.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: design
+      prefix: r1_design
+      prior: r1_requirements
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1a1_impl:
+    needs:
+    - r1_design
+    - admission
+    if: always() && needs.r1_design.result == 'success' && needs.r1_design.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: implementation
+      prefix: r1a1_impl
+      prior: r1_design
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1a1_build:
+    needs:
+    - r1a1_impl
+    - admission
+    if: always() && needs.r1a1_impl.result == 'success' && needs.r1a1_impl.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: compile
+      prefix: r1a1_build
+      prior: r1a1_impl
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a1_author:
+    needs:
+    - r1a1_build
+    - admission
+    if: always() && needs.r1a1_build.result == 'success' && needs.r1a1_build.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: author-tests
+      prefix: r1a1_author
+      prior: r1a1_build
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1a1_tests:
+    needs:
+    - r1a1_author
+    - admission
+    if: always() && needs.r1a1_author.result == 'success' && needs.r1a1_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: tests
+      prefix: r1a1_tests
+      prior: r1a1_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a1_result:
+    needs:
+    - r1a1_impl
+    - r1a1_build
+    - r1a1_author
+    - r1a1_tests
+    - admission
+    if: always() && needs.r1a1_impl.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: select
+      prefix: r1a1_result
+      prior: r1a1_*
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a2_start:
+    needs:
+    - r1a1_result
+    - admission
+    if: always() && needs.r1a1_result.result == 'success' && needs.r1a1_result.outputs.retry == 'true'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: repair
+      prefix: r1a2_start
+      prior: r1a1_result
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a2_impl:
+    needs:
+    - r1a2_start
+    - admission
+    if: always() && needs.r1a2_start.result == 'success' && needs.r1a2_start.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: implementation
+      prefix: r1a2_impl
+      prior: r1a2_start
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1a2_build:
+    needs:
+    - r1a2_impl
+    - admission
+    if: always() && needs.r1a2_impl.result == 'success' && needs.r1a2_impl.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: compile
+      prefix: r1a2_build
+      prior: r1a2_impl
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a2_author:
+    needs:
+    - r1a2_build
+    - admission
+    if: always() && needs.r1a2_build.result == 'success' && needs.r1a2_build.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: author-tests
+      prefix: r1a2_author
+      prior: r1a2_build
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1a2_tests:
+    needs:
+    - r1a2_author
+    - admission
+    if: always() && needs.r1a2_author.result == 'success' && needs.r1a2_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: tests
+      prefix: r1a2_tests
+      prior: r1a2_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a2_result:
+    needs:
+    - r1a2_impl
+    - r1a2_build
+    - r1a2_author
+    - r1a2_tests
+    - admission
+    if: always() && needs.r1a2_impl.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: select
+      prefix: r1a2_result
+      prior: r1a2_*
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1_done:
+    needs:
+    - r1a1_result
+    - r1a2_result
+    - admission
+    if: always() && needs.r1a1_result.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: select
+      prefix: r1_done
+      prior: r1a*_result
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1_release:
+    needs:
+    - r1_done
+    - admission
+    if: always() && needs.r1_done.result == 'success' && needs.r1_done.outputs.passed == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: release
+      prefix: r1_release
+      prior: r1_done
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1_review:
+    needs:
+    - r1_release
+    - admission
+    if: always() && needs.r1_release.result == 'success' && needs.r1_release.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: review
+      prefix: r1_review
+      prior: r1_release
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1_review_tests:
+    needs:
+    - r1_review
+    - admission
+    if: always() && needs.r1_review.result == 'success' && needs.r1_review.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: review-tests
+      prefix: r1_review_tests
+      prior: r1_review
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1_review_final:
+    needs:
+    - r1_review_tests
+    - admission
+    if: always() && needs.r1_review_tests.result == 'success' && needs.r1_review_tests.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: review-final
+      prefix: r1_review_final
+      prior: r1_review_tests
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r1_post:
+    needs:
+    - r1_review_final
+    - admission
+    if: always() && needs.r1_review_final.result == 'success' && needs.r1_review_final.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: post-review
+      prefix: r1_post
+      prior: r1_review_final
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2_start:
+    needs:
+    - r1_post
+    - admission
+    if: always() && needs.r1_post.result == 'success' && needs.r1_post.outputs.repair == 'true'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: repair
+      prefix: r2_start
+      prior: r1_post
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2_requirements:
+    needs:
+    - r2_start
+    - admission
+    if: always() && needs.r2_start.result == 'success' && needs.r2_start.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: requirements
+      prefix: r2_requirements
+      prior: r2_start
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2_design:
+    needs:
+    - r2_requirements
+    - admission
+    if: always() && needs.r2_requirements.result == 'success' && needs.r2_requirements.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: design
+      prefix: r2_design
+      prior: r2_requirements
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2a1_impl:
+    needs:
+    - r2_design
+    - admission
+    if: always() && needs.r2_design.result == 'success' && needs.r2_design.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: implementation
+      prefix: r2a1_impl
+      prior: r2_design
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2a1_build:
+    needs:
+    - r2a1_impl
+    - admission
+    if: always() && needs.r2a1_impl.result == 'success' && needs.r2a1_impl.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: compile
+      prefix: r2a1_build
+      prior: r2a1_impl
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a1_author:
+    needs:
+    - r2a1_build
+    - admission
+    if: always() && needs.r2a1_build.result == 'success' && needs.r2a1_build.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: author-tests
+      prefix: r2a1_author
+      prior: r2a1_build
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2a1_tests:
+    needs:
+    - r2a1_author
+    - admission
+    if: always() && needs.r2a1_author.result == 'success' && needs.r2a1_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: tests
+      prefix: r2a1_tests
+      prior: r2a1_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a1_result:
+    needs:
+    - r2a1_impl
+    - r2a1_build
+    - r2a1_author
+    - r2a1_tests
+    - admission
+    if: always() && needs.r2a1_impl.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: select
+      prefix: r2a1_result
+      prior: r2a1_*
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a2_start:
+    needs:
+    - r2a1_result
+    - admission
+    if: always() && needs.r2a1_result.result == 'success' && needs.r2a1_result.outputs.retry == 'true'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: repair
+      prefix: r2a2_start
+      prior: r2a1_result
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a2_impl:
+    needs:
+    - r2a2_start
+    - admission
+    if: always() && needs.r2a2_start.result == 'success' && needs.r2a2_start.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: implementation
+      prefix: r2a2_impl
+      prior: r2a2_start
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2a2_build:
+    needs:
+    - r2a2_impl
+    - admission
+    if: always() && needs.r2a2_impl.result == 'success' && needs.r2a2_impl.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: compile
+      prefix: r2a2_build
+      prior: r2a2_impl
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a2_author:
+    needs:
+    - r2a2_build
+    - admission
+    if: always() && needs.r2a2_build.result == 'success' && needs.r2a2_build.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: author-tests
+      prefix: r2a2_author
+      prior: r2a2_build
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2a2_tests:
+    needs:
+    - r2a2_author
+    - admission
+    if: always() && needs.r2a2_author.result == 'success' && needs.r2a2_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: tests
+      prefix: r2a2_tests
+      prior: r2a2_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a2_result:
+    needs:
+    - r2a2_impl
+    - r2a2_build
+    - r2a2_author
+    - r2a2_tests
+    - admission
+    if: always() && needs.r2a2_impl.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: select
+      prefix: r2a2_result
+      prior: r2a2_*
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2_done:
+    needs:
+    - r2a1_result
+    - r2a2_result
+    - admission
+    if: always() && needs.r2a1_result.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: select
+      prefix: r2_done
+      prior: r2a*_result
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2_release:
+    needs:
+    - r2_done
+    - admission
+    if: always() && needs.r2_done.result == 'success' && needs.r2_done.outputs.passed == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: release
+      prefix: r2_release
+      prior: r2_done
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2_review:
+    needs:
+    - r2_release
+    - admission
+    if: always() && needs.r2_release.result == 'success' && needs.r2_release.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: review
+      prefix: r2_review
+      prior: r2_release
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2_review_tests:
+    needs:
+    - r2_review
+    - admission
+    if: always() && needs.r2_review.result == 'success' && needs.r2_review.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-execute.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: review-tests
+      prefix: r2_review_tests
+      prior: r2_review
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2_review_final:
+    needs:
+    - r2_review_tests
+    - admission
+    if: always() && needs.r2_review_tests.result == 'success' && needs.r2_review_tests.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-broker.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: review-final
+      prefix: r2_review_final
+      prior: r2_review_tests
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+  r2_post:
+    needs:
+    - r2_review_final
+    - admission
+    if: always() && needs.r2_review_final.result == 'success' && needs.r2_review_final.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: post-review
+      prefix: r2_post
+      prior: r2_review_final
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  final_evidence:
+    needs:
+    - admission
+    - r1_requirements
+    - r1_design
+    - r1a1_impl
+    - r1a1_build
+    - r1a1_author
+    - r1a1_tests
+    - r1a1_result
+    - r1a2_start
+    - r1a2_impl
+    - r1a2_build
+    - r1a2_author
+    - r1a2_tests
+    - r1a2_result
+    - r1_done
+    - r1_release
+    - r1_review
+    - r1_review_tests
+    - r1_review_final
+    - r1_post
+    - r2_start
+    - r2_requirements
+    - r2_design
+    - r2a1_impl
+    - r2a1_build
+    - r2a1_author
+    - r2a1_tests
+    - r2a1_result
+    - r2a2_start
+    - r2a2_impl
+    - r2a2_build
+    - r2a2_author
+    - r2a2_tests
+    - r2a2_result
+    - r2_done
+    - r2_release
+    - r2_review
+    - r2_review_tests
+    - r2_review_final
+    - r2_post
+    if: always() && needs.admission.result == 'success'
+    uses: ./.github/workflows/autose-data.yml
+    permissions:
+      contents: read
+      actions: read
+    with:
+      phase: final
+      prefix: final_evidence
+      prior: '*'
+      base_sha: ${{ needs.admission.outputs.base_sha }}

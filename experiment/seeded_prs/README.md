@@ -1,0 +1,3 @@
+# Reviewer-check experiment
+
+Required: five real hosted PRs, saved diffs and labels. None created. Keep planted ground truth outside repository and reviewer context until all reviews are complete. Suggested mix for student review: allocator/customization regression, query-cache identity defect, middleware lifecycle/data-loss defect, a misleading-test change, and a clean control. Defect categories and clean-control count are design choices, not specified course counts. Freeze exact diffs, head SHAs, expected findings and labels privately before reviewers run. Never publish solution labels into the reviewer checkout. Publish examiner evidence only after evaluation is complete, with provenance and review links.

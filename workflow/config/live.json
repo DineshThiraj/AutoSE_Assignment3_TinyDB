@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "adapter": null,
+  "model": null,
+  "effort": null,
+  "token_budget": null,
+  "max_output_tokens": null,
+  "provider_support_evidence": null,
+  "hard_cap_evidence": null,
+  "provider_cap_verified": false,
+  "paid_authorized": false,
+  "paid_authorization_evidence": null,
+  "authorization_expires_at": null
+}
