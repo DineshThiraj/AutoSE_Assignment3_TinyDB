@@ -27,9 +27,6 @@ name: AutoSE execute phase
         value: ${{ jobs.phase.outputs.want_tests }}
       base_sha:
         value: ${{ jobs.phase.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN:
-        required: false
 permissions: {}
 jobs:
   phase:
@@ -68,6 +65,8 @@ jobs:
         artifact-ids: ${{ steps.artifacts.outputs.ids }}
         path: input
         merge-multiple: true
+    - name: Install trusted verifier dependencies before candidate execution
+      run: python -m pip install --disable-pip-version-check pytest==9.2.0 PyYAML==6.0.3
     - name: Build trusted test environment before target mount
       run: 'docker build -t autose-pytest:trusted -f workflow/Dockerfile workflow
 
@@ -77,8 +76,8 @@ jobs:
       env:
         PYTHONPATH: workflow
         PHASE: ${{ inputs.phase }}
-        AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
         AUTOSE_JOB_ID: ${{ inputs.prefix }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: python -m autose.cli "$PHASE" --input input --output out
     - uses: actions/upload-artifact@v4
       if: always()

@@ -135,10 +135,14 @@ controller code. Provider honors the requested default tier, model context/outpu
 limits and verified rates. Attestations correctly bind the project/key. There is
 no guarantee against a compromised provider, platform, administrator or dependency.
 The model and candidate code receive none of those administrative capabilities.
-The separately audited test authority must establish genuine independent baseline
-and generated execution; its signature must never just certify candidate XML.
-The checked-in adapter has no signer or actual execution backend. Missing genuine
-verification leaves required CI/release blocked rather than accepting the report.
+The independent execution backend now runs immutable baseline assertions in a
+trusted pytest interpreter and constrained generated assertions in a trusted AST
+evaluator. Candidate TinyDB runs in another container and supplies JSON API data
+only. See ../results/AUTHORITY_BACKEND.md for the trust assumptions and limits of
+this API bridge. A null/unavailable pinned image, missing completion or mismatched
+identity blocks CI/release. No production signing key or test-authority credential
+is needed. Configuration stays disabled; actual Docker/hosted validation and
+independent review are still required. Existing base-controller CI is insufficient.
 
 Local verification from repository root (no inference or workflow trigger):
 

@@ -139,6 +139,11 @@ def author_tests(state, broker, repo):
     result = ask(broker, state, 'testing', repo)
     source = replacements(state['source'], result.get('files'), 'testing', baseline=state['baseline'])
     tests_cover(source, state['baseline'], result.get('test_map'), [c['id'] for c in state['spec']['criteria']])
+    from .authority_dsl import check
+    for path,content in source.items():
+        if path.startswith('tests/') and path not in state['baseline']:
+            try:check(content)
+            except (SyntaxError,RuntimeError):require(False,'generated tests must use the independent verifier subset')
     state['source'], state['test_map'] = source, result['test_map']
     state['patch'] = diff(state['baseline'], source)
 
@@ -147,6 +152,12 @@ def test_stage(state, directory, *, baseline_ids, **execution_options):
     passed(state, 'implementation')
     tests_cover(state['source'], state['baseline'], state['test_map'], [c['id'] for c in state['spec']['criteria']])
     execution_options['timeout'] = min(execution_options.get('timeout',300),remaining(state),300)
+    if state['execution_kind']=='hosted':
+        frozen=state.get('candidate_commit',{})
+        require(frozen.get('source_sha256')==source_hash(state['source']),'candidate must be frozen before authoritative testing')
+        execution_options['head_sha']=frozen['head_sha']
+        execution_options['binding']={'kind':'issue','issue_number':state['issue']['number'],
+            'issue_hash':state['issue_hash'],'admitted_run_id':state['run_id'],'base_sha':state['base_sha']}
     result = execute(state['source'], directory, phase='testing', baseline_ids=baseline_ids,
                      test_map=state['test_map'], **execution_options)
     state['execution'] = result
@@ -154,6 +165,12 @@ def test_stage(state, directory, *, baseline_ids, **execution_options):
     gate(state, 'testing', 'passed' if result['passed'] else 'failed',
          'Candidate pytest is diagnostic; independent verified baseline/generated verdict required.',
          source_hash=state['tested_source_hash'], case_count=result.get('case_count'))
+
+
+def freeze_candidate(state,github):
+    passed(state,'implementation');remaining(state)
+    tests_cover(state['source'],state['baseline'],state['test_map'],[c['id'] for c in state['spec']['criteria']])
+    return github.freeze_candidate(state)
 
 
 def release(state, github):

@@ -1,11 +1,14 @@
 # Setup required before a real hosted slice
 
-PR #8 remediation adds two blocking prerequisites: a narrowly scoped durable
-per-call consumption service, and a separately audited independent test-verdict
-authority with a pinned public verification key. No service or authority has been
-deployed. Candidate JUnit is diagnostic; absent genuine independent verification,
-required CI and release fail closed. See results/PR8_REMEDIATION.md and
-workflow/config/test-authority.json (disabled). Keep live.json disabled.
+Current PR #8 prerequisites: a narrowly scoped durable per-call consumption
+service and an independently reviewed/tested execution backend. The execution
+backend is now implemented as a trusted local pytest supervisor with JSON-only
+access to candidate Python in a separate container. It requires an approved,
+available exact image digest; config/test-authority.json stays disabled with a null
+digest. It requires no test-authority secret or remote signer. Docker/hosted behavior
+has not been verified. Candidate JUnit remains diagnostic, and CI/release fail
+closed without genuine independent execution. See results/AUTHORITY_BACKEND.md.
+The consumption service still requires separate deployment. Keep live.json disabled.
 
 2026-11-17 correction checkpoint: main now exists and is protected with required
 tinydb-tests; hosted baseline run 44068724918 passed 228 tests and issues #3–#7 exist.

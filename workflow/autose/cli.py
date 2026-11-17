@@ -78,7 +78,7 @@ def render(state):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('phase', choices=['admission','claim','reserve','requirements','design','implementation','compile','author-tests',
+    parser.add_argument('phase', choices=['admission','claim','reserve','freeze-candidate','requirements','design','implementation','compile','author-tests',
                         'tests','release','review','review-tests','review-final','post-review','repair','select','final'])
     parser.add_argument('--input', default='input')
     parser.add_argument('--output', default='output')
@@ -136,14 +136,19 @@ def main(argv=None):
             elif args.phase == 'author-tests':
                 engine.author_tests(state, broker, repo)
             elif args.phase == 'tests':
+                GitHub().verify_candidate(state)
                 engine.test_stage(state, args.work,baseline_ids=json_load(repo/'workflow/config/baseline-case-ids.json'))
+            elif args.phase == 'freeze-candidate':
+                engine.freeze_candidate(state,GitHub())
             elif args.phase == 'release':
                 engine.release(state, GitHub())
             elif args.phase == 'review':
                 engine.independent_review(state, broker, repo)
             elif args.phase == 'review-tests' and state.get('review_requested_tests'):
                 result = execute(state['source'],args.work,phase='testing',
-                    baseline_ids=json_load(repo/'workflow/config/baseline-case-ids.json'),test_map=state['test_map'],timeout=min(300,engine.remaining(state)))
+                    baseline_ids=json_load(repo/'workflow/config/baseline-case-ids.json'),test_map=state['test_map'],timeout=min(300,engine.remaining(state)),
+                    head_sha=state['publication']['head_sha'],binding={'kind':'issue','issue_number':state['issue']['number'],
+                        'issue_hash':state['issue_hash'],'admitted_run_id':state['run_id'],'base_sha':state['base_sha']})
                 state['own_review_execution'] = result
             elif args.phase == 'review-final' and not skip:
                 engine.independent_review(state,broker,repo,own_test_result=state['own_review_execution'])

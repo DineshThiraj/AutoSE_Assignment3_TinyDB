@@ -15,6 +15,7 @@ for kind in ('broker','execute','publish','data','ledger'):
  steps.append({'uses':'actions/download-artifact@v4','with':{'artifact-ids':'${{ steps.artifacts.outputs.ids }}',
   'path':'input','merge-multiple':kind!='data'}})
  if kind=='execute':
+  steps.append({'name':'Install trusted verifier dependencies before candidate execution','run':'python -m pip install --disable-pip-version-check pytest==9.2.0 PyYAML==6.0.3'})
   steps.append({'name':'Build trusted test environment before target mount','run':'docker build -t autose-pytest:trusted -f workflow/Dockerfile workflow\ndocker image inspect autose-pytest:trusted --format "{{.Id}}" > image-id.txt'})
  env={'PYTHONPATH':'workflow','PHASE':'${{ inputs.phase }}'}
  if kind=='broker': env['AUTOSE_MODEL_API_KEY']='${{ secrets.AUTOSE_MODEL_API_KEY }}'
@@ -22,9 +23,8 @@ for kind in ('broker','execute','publish','data','ledger'):
   env['AUTOSE_CONSUMER_TOKEN']='${{ secrets.AUTOSE_CONSUMER_TOKEN }}'
   env['AUTOSE_JOB_ID']='${{ inputs.prefix }}'
  if kind=='execute':
-  env['AUTOSE_TEST_AUTH_TOKEN']='${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}'
   env['AUTOSE_JOB_ID']='${{ inputs.prefix }}'
- if kind in {'broker','publish','ledger'}: env['GITHUB_TOKEN']='${{ github.token }}'
+ if kind in {'broker','publish','ledger','execute'}: env['GITHUB_TOKEN']='${{ github.token }}'
  # Data repair takes a named input artifact, unlike selection of multiple artifacts.
  command='python -m autose.cli "$PHASE" --input input --output out'
  if kind=='ledger':
@@ -38,7 +38,6 @@ for kind in ('broker','execute','publish','data','ledger'):
  call={'inputs':inputs,'outputs':baseout}
  if kind=='ledger': call['inputs']={**inputs,'target_phase':{'required':False,'type':'string','default':'requirements'},'target_job':{'required':False,'type':'string','default':''}}
  if kind=='broker': call['secrets']={k:{'required':False} for k in ('AUTOSE_MODEL_API_KEY','AUTOSE_CONSUMER_TOKEN')}
- if kind=='execute':call['secrets']={'AUTOSE_TEST_AUTH_TOKEN':{'required':False}}
  doc={'name':'AutoSE '+kind+' phase','on':{'workflow_call':call},'permissions':{},'jobs':{'phase':phase}}
  (repo/'.github/workflows'/f'autose-{kind}.yml').write_text(yaml.safe_dump(doc,sort_keys=False,width=120))
 
@@ -57,7 +56,6 @@ def call(name,phase,previous,kind='broker',condition=None,needs=None,pattern=Non
     'permissions':perms, 'with':{'phase':phase,'prefix':name,'prior':pattern or previous,'base_sha':'${{ needs.admission.outputs.base_sha }}'}}
  if 'admission' not in j['needs']: j['needs'].append('admission')
  if kind=='broker':j['secrets']={k:'${{ secrets.'+k+' }}' for k in ('AUTOSE_MODEL_API_KEY','AUTOSE_CONSUMER_TOKEN')}
- if kind=='execute':j['secrets']={'AUTOSE_TEST_AUTH_TOKEN':'${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}'}
  if target_phase:j['with']['target_phase']=target_phase
  jobs[name]=j
  return name
@@ -81,8 +79,9 @@ for rnd in (1,2):
   impl=call(prefix+'_impl','implementation',start)
   build=call(prefix+'_build','compile',impl,'execute')
   author=call(prefix+'_author','author-tests',build)
-  test=call(prefix+'_tests','tests',author,'execute')
-  result=call(prefix+'_result','select',impl,'data',condition=f"always() && needs.{impl}.result == 'success'",needs=[impl,build,author,test],pattern=prefix+'_*')
+  frozen=call(prefix+'_freeze','freeze-candidate',author,'publish')
+  test=call(prefix+'_tests','tests',frozen,'execute')
+  result=call(prefix+'_result','select',impl,'data',condition=f"always() && needs.{impl}.result == 'success'",needs=[impl,build,author,frozen,test],pattern=prefix+'_*')
   results.append(result)
  done=call(f'r{rnd}_done','select',results[0],'data',condition=f"always() && needs.{results[0]}.result == 'success'",needs=results,pattern=f'r{rnd}a*_result')
  rel=call(f'r{rnd}_release','release',done,'publish',condition=guard(done,'passed'))
@@ -99,8 +98,9 @@ ci={'name':'AutoSE exact-head CI','on':{'pull_request':{'branches':['main']}},'p
   {'uses':'actions/checkout@v4','with':{'ref':'${{ github.event.pull_request.base.sha }}','path':'trusted','fetch-depth':0,'persist-credentials':False}},
   {'uses':'actions/checkout@v4','with':{'ref':'${{ github.event.pull_request.head.sha }}','path':'candidate','persist-credentials':False}},
   {'uses':'actions/setup-python@v5','with':{'python-version':'3.12'}},
+  {'name':'Install trusted verifier dependencies','run':'python -m pip install --disable-pip-version-check pytest==9.2.0 PyYAML==6.0.3'},
   {'name':'Build trusted image','run':'docker build -t autose-pytest:trusted -f trusted/workflow/Dockerfile trusted/workflow'},
-  {'name':'Test exact PR head in isolated container and require independent verification','env':{'PYTHONPATH':'trusted/workflow','AUTOSE_TEST_AUTH_TOKEN':'${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}'},'run':'python trusted/workflow/ci_exact.py'},
+  {'name':'Test exact PR head in isolated container and require independent verification','env':{'PYTHONPATH':'trusted/workflow','GITHUB_TOKEN':'${{ github.token }}'},'run':'python trusted/workflow/ci_exact.py'},
   {'uses':'actions/upload-artifact@v4','if':'always()','with':{'name':'exact-head-test-evidence-attempt-${{ github.run_attempt }}','path':'ci-output/','retention-days':90}}]}}}
 (repo/'.github/workflows/autose-ci.yml').write_text(yaml.safe_dump(ci,sort_keys=False,width=120))
 for p in (repo/'.github/workflows').glob('autose*.yml'):shutil.copy2(p,repo/'workflow/workflows'/p.name)

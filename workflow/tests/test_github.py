@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import base64
 import time
 
 import pytest
@@ -29,6 +30,9 @@ class FakeAPI:
         self.tree='c'*40
         self.reject_approval=False
         self.prs_override=None
+        self.blobs={gitblob(c):c for c in baseline.values()}
+        self.target_entries=None
+        self.commit_record=None
 
     def __call__(self,method,path,body):
         self.calls.append((method,path,body))
@@ -45,19 +49,28 @@ class FakeAPI:
         if endpoint=='/issues/1':return {'number':1,'title':'issue','body':'Explicit scope.','state':'open','updated_at':'fixture','html_url':'fixture://issue/1'}
         if endpoint=='/git/ref/heads/main':return {'object':{'sha':self.main}}
         if endpoint.startswith('/git/trees/'):
-            return {'sha':'d'*40,'truncated':False,'tree':[{'path':p,'mode':'100644','type':'blob','sha':gitblob(c)} for p,c in self.baseline.items()]}
+            entries=[{'path':p,'mode':'100644','type':'blob','sha':gitblob(c)} for p,c in self.baseline.items()]
+            if endpoint.split('?')[0].endswith(self.tree) and self.target_entries is not None:entries=self.target_entries
+            return {'sha':'d'*40,'truncated':False,'tree':entries}
+        if endpoint.startswith('/git/blobs/'):
+            return {'encoding':'base64','content':base64.b64encode(self.blobs[endpoint.rsplit('/',1)[-1]].encode()).decode()}
         if endpoint.startswith('/pulls?'):
             if self.prs_override is not None:return self.prs_override
             return [] if self.pr is None else [copy.deepcopy(self.pr)]
         if endpoint=='/git/ref/heads/autose/issue-1':
             if not self.branch:raise APIError(404)
             return {'object':{'sha':self.branch}}
-        if method=='POST' and endpoint=='/git/blobs':return {'sha':gitblob(body['content'])}
-        if method=='POST' and endpoint=='/git/trees':return {'sha':self.tree}
+        if method=='POST' and endpoint=='/git/blobs':
+            self.blobs[gitblob(body['content'])]=body['content'];return {'sha':gitblob(body['content'])}
+        if method=='POST' and endpoint=='/git/trees':
+            entries={p:{'path':p,'mode':'100644','type':'blob','sha':gitblob(c)} for p,c in self.baseline.items()}
+            entries.update({e['path']:e for e in body['tree']});self.target_entries=list(entries.values())
+            return {'sha':self.tree}
         if method=='POST' and endpoint=='/git/commits':
             assert body['parents']==[self.branch or self.main]
+            self.commit_record={'tree':{'sha':self.tree},'parents':[{'sha':p} for p in body['parents']],'message':body['message']}
             return {'sha':'b'*40}
-        if endpoint=='/git/commits/'+'b'*40:return {'tree':{'sha':self.tree}}
+        if endpoint=='/git/commits/'+'b'*40:return copy.deepcopy(self.commit_record)
         if method=='POST' and endpoint=='/git/refs':
             assert body['ref']=='refs/heads/autose/issue-1'
             self.branch=body['sha'];return {'object':{'sha':self.branch}}
@@ -90,14 +103,22 @@ def api(baseline):return FakeAPI(baseline)
 
 
 @pytest.fixture
-def hosted_contract_state(state):
+def hosted_contract_state(state,api):
     # Only paired with FakeAPI; no live token or actual hosted claim.
     state['execution_kind']='hosted'
     state['source']['tinydb/table.py']+='\n# fixture-only edit\n'
     state['tested_source_hash']=source_hash(state['source'])
-    state['execution']={'passed':True,'authoritative':True,'identity':{'source_sha256':state['tested_source_hash']}}
+    from autose.verification import environment_spec
+    env=environment_spec();env['image_digest']='sha256:'+'f'*64
+    state['execution']={'passed':True,'authoritative':True,'identity':{'source_sha256':state['tested_source_hash'],
+        'head_sha':'b'*40,'run_id':state['run_id'],
+        'binding':{'issue_hash':state['issue_hash'],'issue_number':state['issue']['number'],
+                   'admitted_run_id':state['run_id']},'expected_environment':env}}
     state['execution']['verification']={'record':{'identity':state['execution']['identity'],
-        'completed':True,'verdict':'passed','expires_at':time.time()+300}}
+        'completed':True,'verdict':'passed','expires_at':time.time()+300,'schema':'autose-isolated-authority-v2',
+        'environment':{**env,'isolation':'docker_candidate_private_namespace'}}}
+    gate(state,'implementation','passed','fixture compile gate')
+    GitHub(transport=api).freeze_candidate(state)
     gate(state,'testing','passed','fixture full-suite gate')
     return state
 
@@ -161,6 +182,30 @@ def test_source_identity_and_changed_base_stop(hosted_contract_state,api):
     with pytest.raises(GateError,match='base changed'):GitHub(transport=api).publish(hosted_contract_state)
     api.main='a'*40;hosted_contract_state['source']['tinydb/table.py']+='changed'
     with pytest.raises(GateError,match='source identity'):GitHub(transport=api).publish(hosted_contract_state)
+
+
+def test_frozen_commit_is_not_published_until_tests_and_is_released_unchanged(hosted_contract_state,api):
+    commits=[c for c in api.calls if c[0]=='POST' and c[1].endswith('/git/commits')]
+    assert len(commits)==1
+    assert api.branch is None and api.pr is None
+    frozen=copy.deepcopy(hosted_contract_state['candidate_commit'])
+    GitHub(transport=api).publish(hosted_contract_state)
+    assert api.branch==frozen['head_sha']==hosted_contract_state['execution']['identity']['head_sha']
+    assert len([c for c in api.calls if c[0]=='POST' and c[1].endswith('/git/commits')])==1
+
+
+@pytest.mark.parametrize('defect',['head','issue','run','admitted_run','commit_message','commit_parent','commit_source'])
+def test_mismatched_frozen_commit_or_test_binding_cannot_publish(hosted_contract_state,api,defect):
+    identity=hosted_contract_state['execution']['identity']
+    if defect=='head':identity['head_sha']='f'*40
+    if defect=='issue':identity['binding']['issue_number']=3
+    if defect=='run':identity['run_id']='different'
+    if defect=='admitted_run':identity['binding']['admitted_run_id']='different'
+    if defect=='commit_message':api.commit_record['message']='different'
+    if defect=='commit_parent':api.commit_record['parents']=[{'sha':'f'*40}]
+    if defect=='commit_source':api.blobs[api.target_entries[0]['sha']]+='changed'
+    with pytest.raises(GateError):GitHub(transport=api).publish(hosted_contract_state)
+    assert api.branch is None and api.pr is None
 
 
 @pytest.mark.parametrize('mode',['stale','missing','pending'])

@@ -171,8 +171,6 @@ jobs:
       prefix: r1a1_build
       prior: r1a1_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a1_author_budget:
     needs:
     - r1a1_build
@@ -206,11 +204,26 @@ jobs:
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
       AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
-  r1a1_tests:
+  r1a1_freeze:
     needs:
     - r1a1_author
     - admission
     if: always() && needs.r1a1_author.result == 'success' && needs.r1a1_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: freeze-candidate
+      prefix: r1a1_freeze
+      prior: r1a1_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a1_tests:
+    needs:
+    - r1a1_freeze
+    - admission
+    if: always() && needs.r1a1_freeze.result == 'success' && needs.r1a1_freeze.outputs.ready == 'true'
     uses: ./.github/workflows/autose-execute.yml
     permissions:
       contents: read
@@ -218,15 +231,14 @@ jobs:
     with:
       phase: tests
       prefix: r1a1_tests
-      prior: r1a1_author
+      prior: r1a1_freeze
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a1_result:
     needs:
     - r1a1_impl
     - r1a1_build
     - r1a1_author
+    - r1a1_freeze
     - r1a1_tests
     - admission
     if: always() && needs.r1a1_impl.result == 'success'
@@ -300,8 +312,6 @@ jobs:
       prefix: r1a2_build
       prior: r1a2_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a2_author_budget:
     needs:
     - r1a2_build
@@ -335,11 +345,26 @@ jobs:
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
       AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
-  r1a2_tests:
+  r1a2_freeze:
     needs:
     - r1a2_author
     - admission
     if: always() && needs.r1a2_author.result == 'success' && needs.r1a2_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: freeze-candidate
+      prefix: r1a2_freeze
+      prior: r1a2_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r1a2_tests:
+    needs:
+    - r1a2_freeze
+    - admission
+    if: always() && needs.r1a2_freeze.result == 'success' && needs.r1a2_freeze.outputs.ready == 'true'
     uses: ./.github/workflows/autose-execute.yml
     permissions:
       contents: read
@@ -347,15 +372,14 @@ jobs:
     with:
       phase: tests
       prefix: r1a2_tests
-      prior: r1a2_author
+      prior: r1a2_freeze
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a2_result:
     needs:
     - r1a2_impl
     - r1a2_build
     - r1a2_author
+    - r1a2_freeze
     - r1a2_tests
     - admission
     if: always() && needs.r1a2_impl.result == 'success'
@@ -445,8 +469,6 @@ jobs:
       prefix: r1_review_tests
       prior: r1_review
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1_review_final_budget:
     needs:
     - r1_review_tests
@@ -622,8 +644,6 @@ jobs:
       prefix: r2a1_build
       prior: r2a1_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a1_author_budget:
     needs:
     - r2a1_build
@@ -657,11 +677,26 @@ jobs:
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
       AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
-  r2a1_tests:
+  r2a1_freeze:
     needs:
     - r2a1_author
     - admission
     if: always() && needs.r2a1_author.result == 'success' && needs.r2a1_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: freeze-candidate
+      prefix: r2a1_freeze
+      prior: r2a1_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a1_tests:
+    needs:
+    - r2a1_freeze
+    - admission
+    if: always() && needs.r2a1_freeze.result == 'success' && needs.r2a1_freeze.outputs.ready == 'true'
     uses: ./.github/workflows/autose-execute.yml
     permissions:
       contents: read
@@ -669,15 +704,14 @@ jobs:
     with:
       phase: tests
       prefix: r2a1_tests
-      prior: r2a1_author
+      prior: r2a1_freeze
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a1_result:
     needs:
     - r2a1_impl
     - r2a1_build
     - r2a1_author
+    - r2a1_freeze
     - r2a1_tests
     - admission
     if: always() && needs.r2a1_impl.result == 'success'
@@ -751,8 +785,6 @@ jobs:
       prefix: r2a2_build
       prior: r2a2_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a2_author_budget:
     needs:
     - r2a2_build
@@ -786,11 +818,26 @@ jobs:
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
       AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
-  r2a2_tests:
+  r2a2_freeze:
     needs:
     - r2a2_author
     - admission
     if: always() && needs.r2a2_author.result == 'success' && needs.r2a2_author.outputs.ready == 'true'
+    uses: ./.github/workflows/autose-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      pull-requests: write
+    with:
+      phase: freeze-candidate
+      prefix: r2a2_freeze
+      prior: r2a2_author
+      base_sha: ${{ needs.admission.outputs.base_sha }}
+  r2a2_tests:
+    needs:
+    - r2a2_freeze
+    - admission
+    if: always() && needs.r2a2_freeze.result == 'success' && needs.r2a2_freeze.outputs.ready == 'true'
     uses: ./.github/workflows/autose-execute.yml
     permissions:
       contents: read
@@ -798,15 +845,14 @@ jobs:
     with:
       phase: tests
       prefix: r2a2_tests
-      prior: r2a2_author
+      prior: r2a2_freeze
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a2_result:
     needs:
     - r2a2_impl
     - r2a2_build
     - r2a2_author
+    - r2a2_freeze
     - r2a2_tests
     - admission
     if: always() && needs.r2a2_impl.result == 'success'
@@ -896,8 +942,6 @@ jobs:
       prefix: r2_review_tests
       prior: r2_review
       base_sha: ${{ needs.admission.outputs.base_sha }}
-    secrets:
-      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2_review_final_budget:
     needs:
     - r2_review_tests
@@ -959,6 +1003,7 @@ jobs:
     - r1a1_build
     - r1a1_author_budget
     - r1a1_author
+    - r1a1_freeze
     - r1a1_tests
     - r1a1_result
     - r1a2_start
@@ -967,6 +1012,7 @@ jobs:
     - r1a2_build
     - r1a2_author_budget
     - r1a2_author
+    - r1a2_freeze
     - r1a2_tests
     - r1a2_result
     - r1_done
@@ -987,6 +1033,7 @@ jobs:
     - r2a1_build
     - r2a1_author_budget
     - r2a1_author
+    - r2a1_freeze
     - r2a1_tests
     - r2a1_result
     - r2a2_start
@@ -995,6 +1042,7 @@ jobs:
     - r2a2_build
     - r2a2_author_budget
     - r2a2_author
+    - r2a2_freeze
     - r2a2_tests
     - r2a2_result
     - r2_done

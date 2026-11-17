@@ -25,7 +25,8 @@ def test_static_job_graph_no_cycles_and_only_two_review_rounds():
             visit(need,active|{name})
         done.add(name)
     for name in jobs:visit(name,set())
-    assert len(done)==58
+    assert len(done)==62
+    assert sum(j.get('with',{}).get('phase')=='freeze-candidate' for j in jobs.values())==4
     assert jobs['trial_claim']['with']['phase']=='claim'
     assert jobs['trial_claim']['needs']==['admission']
     assert sum(j.get('with',{}).get('phase')=='review' for j in jobs.values())==2

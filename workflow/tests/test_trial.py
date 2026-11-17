@@ -302,6 +302,8 @@ def test_budgeted_protocol_slice_executes_real_source_without_network(state,monk
     engine.compile_stage(state,tmp_path/'build',local_fixture=True,python=PYTHON)
     engine.author_tests(state,broker('author-tests'),REPO)
     from conftest import FixtureVerifier
+    from autose.source import source_hash
+    state['candidate_commit']={'head_sha':'b'*40,'source_sha256':source_hash(state['source'])}
     engine.test_stage(state,tmp_path/'tests',baseline_ids=baseline_ids,local_fixture=True,python=PYTHON,verifier=FixtureVerifier())
     assert state['execution']['passed'] and state['execution']['case_count']==232
     publisher=FixturePublisher();engine.release(state,publisher)

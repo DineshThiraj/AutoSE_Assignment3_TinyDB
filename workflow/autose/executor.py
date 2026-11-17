@@ -64,7 +64,7 @@ def junit(path):
 
 
 def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_fixture=False,
-            python=sys.executable, timeout=300, image='autose-pytest:trusted', verifier=None, head_sha=None):
+            python=sys.executable, timeout=300, image='autose-pytest:trusted', verifier=None, head_sha=None,binding=None):
     require(phase in {'compile', 'testing'}, "execution phase")
     root = Path(directory).resolve()
     require(not root.exists(), "execution directory exists")
@@ -75,9 +75,13 @@ def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_f
     require(0 < timeout <= 300, "invalid execution timeout")
     execution_identity={'execution_id':uuid.uuid4().hex,'repository':REPOSITORY,
         'source_sha256':digest(encoded(source)), 'head_sha':head_sha,
+        'binding':binding,
         'run_id':os.environ.get('GITHUB_RUN_ID','local-fixture'),
         'run_attempt':os.environ.get('GITHUB_RUN_ATTEMPT','local-fixture'),
         'job_id':os.environ.get('AUTOSE_JOB_ID',os.environ.get('GITHUB_JOB','local-fixture'))}
+    if phase=='testing':
+        from .verification import environment_spec
+        execution_identity['expected_environment']=environment_spec()
     env = {'PATH': os.defpath, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTEST_DISABLE_PLUGIN_AUTOLOAD': '1', 'LANG': 'C.UTF-8'}
     command = COMPILE if phase == 'compile' else PYTEST
     if local_fixture:
@@ -138,9 +142,9 @@ def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_f
         if result['diagnostic_passed']:
             try:
                 from .verification import configured_authority
-                checked=(verifier or configured_authority()).verify(plan)
+                checked=(verifier or configured_authority(root/'independent')).verify(plan)
                 require(checked.get('verified') is True,'independent verification missing')
-                # The trusted authority adapter verifies the signature and identity.
+                # The trusted supervisor executes tests and verifies their identity.
                 # A dependency-injected verifier is for coordinator tests only.
                 result['verification']=checked
                 ids=checked['case_ids']

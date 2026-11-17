@@ -121,8 +121,11 @@ class FixtureVerifier:
         ids=[tuple(c) for c in plan['baseline_case_ids']]
         ids += [('tests.test_autose_remove',name+'['+storage+']')
                 for name in ('test_repeated_ids','test_preserve_tables_and_cache') for storage in ('memory','json')]
+        plan['identity']['expected_environment']['image_digest']='sha256:'+'f'*64
         return {'verified':True,'case_ids':ids,'record':{'fixture_only':True,'identity':plan['identity'],
-                'completed':True,'verdict':'passed','expires_at':time.time()+300}}
+                'completed':True,'verdict':'passed','expires_at':time.time()+300,
+                'schema':'autose-isolated-authority-v2',
+                'environment':{**plan['identity']['expected_environment'],'isolation':'docker_candidate_private_namespace'}}}
 
 
 @pytest.fixture

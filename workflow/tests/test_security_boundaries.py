@@ -91,6 +91,12 @@ def test_independent_signature_and_all_228_cases_are_required(verification_plan,
 
 def test_release_rechecks_independent_verdict_expiry(verification_plan):
     record=signed_record(verification_plan)
+    from autose.verification import environment_spec
+    env=environment_spec();env['image_digest']='sha256:'+'f'*64
+    verification_plan['identity']['expected_environment']=env
+    record['schema']='autose-isolated-authority-v2'
+    record['environment']={**env,'isolation':'docker_candidate_private_namespace'}
+    record['identity']=verification_plan['identity']
     result={'passed':True,'authoritative':True,'identity':verification_plan['identity'],'verification':{'record':record}}
     require_authoritative(result,'a'*64)
     record['expires_at']=0

@@ -1,20 +1,24 @@
-"""Independent test-verdict protocol. Candidate reports are never authority.
+"""Independent execution records. Only the isolated local supervisor authorizes.
 
-There is intentionally NO signer here. A separately controlled authority must
-execute/verify baseline and generated tests independently, not sign supplied XML.
-Absent that authority, required CI and publication fail closed.
+Legacy signature parsing remains for archived protocol tests, not a production
+signing-service fallback. Candidate output never supplies a verdict.
 """
 import base64
-import os
 from pathlib import Path
 import subprocess
 import tempfile
 import time
+import re
 
-from .common import GateError, SECRET_PATTERN, digest, encoded, json_load, require
-from .services import post_json
+from .common import GateError, digest, encoded, json_load, require
 
 DOMAIN=b'AUTOSE independent tests v1\n'
+
+
+def environment_spec():
+    from .authority_backend import POLICY,trusted_code_hash
+    config=json_load(Path(__file__).resolve().parents[1]/'config/test-authority.json')
+    return {'policy':POLICY,'controller_sha256':trusted_code_hash(),'image_digest':config.get('image_digest')}
 
 
 def require_authoritative(result, expected_source=None):
@@ -24,15 +28,26 @@ def require_authoritative(result, expected_source=None):
     require(record.get('identity')==result.get('identity') and record.get('completed') is True
             and record.get('verdict')=='passed','independent verification identity/result missing')
     require(type(record.get('expires_at')) in (int,float) and time.time()<record['expires_at'],'independent verification expired')
+    require(record.get('schema')=='autose-isolated-authority-v2','isolated authority evidence required')
+    env=record.get('environment',{})
+    expected=result['identity'].get('expected_environment',{})
+    require(all(env.get(k)==expected.get(k) for k in ('policy','controller_sha256','image_digest')),
+            'verified execution environment mismatch')
+    require(env.get('policy')=='autose-isolated-rpc-v1' and env.get('isolation')=='docker_candidate_private_namespace' and
+            isinstance(env.get('image_digest'),str) and re.fullmatch('sha256:[a-f0-9]{64}',env['image_digest']),'verified isolation missing')
     if expected_source is not None:
         require(result.get('identity',{}).get('source_sha256')==expected_source,'verified source identity mismatch')
 
 
 def validate_record(record, plan):
-    require(isinstance(record,dict) and record.get('schema')=='autose-independent-tests-v1','invalid independent verdict')
+    require(isinstance(record,dict) and record.get('schema') in ('autose-independent-tests-v1','autose-isolated-authority-v2'),'invalid independent verdict')
     require(record.get('identity')==plan['identity'] and record.get('plan_sha256')==digest(encoded(plan)), 'independent execution identity mismatch')
     require(record.get('method')=='independent-baseline-and-generated-execution', 'candidate report/signing-only verification forbidden')
     require(record.get('completed') is True and record.get('verdict')=='passed','independent tests incomplete/failed')
+    if record['schema']=='autose-isolated-authority-v2':
+        expected=plan['identity'].get('expected_environment',{})
+        require(isinstance(expected,dict) and set(expected)=={'policy','controller_sha256','image_digest'} and
+                all(record.get('environment',{}).get(k)==v for k,v in expected.items()),'independent environment mismatch')
     now=time.time()
     require(type(record.get('completed_at')) in (int,float) and type(record.get('expires_at')) in (int,float)
             and now-3600 <= record['completed_at'] <= now < record['expires_at'] <= record['completed_at']+3600,'independent verdict stale/expired')
@@ -87,18 +102,11 @@ def verify_envelope(envelope, public_key_pem, plan):
     return {'record':envelope['record'],'signature':envelope['signature'],'case_ids':ids,'verified':True}
 
 
-class TestAuthority:
-    def __init__(self,config):self.config=config
-
-    def verify(self,plan):
-        require(self.config.get('enabled') is True,'independent test authority disabled; testing gate blocked')
-        key=self.config.get('public_key_pem')
-        require(isinstance(key,str) and key.startswith('-----BEGIN PUBLIC KEY-----'),'trusted verification public key missing')
-        require(not SECRET_PATTERN.search(encoded(plan)),'credential-like verification input; stop before transmission')
-        envelope=post_json(self.config.get('url'),plan,os.environ.get('AUTOSE_TEST_AUTH_TOKEN'),timeout=240)
-        return verify_envelope(envelope,key,plan)
-
-
-def configured_authority():
+def configured_authority(work_dir=None):
     path=Path(__file__).resolve().parents[1]/'config/test-authority.json'
-    return TestAuthority(json_load(path))
+    config=json_load(path)
+    if config.get('backend','isolated-rpc-v1')=='isolated-rpc-v1':
+        from .authority_backend import IsolatedAuthority
+        require(work_dir is not None,'independent authority workspace missing')
+        return IsolatedAuthority(config,work_dir)
+    require(False,'signing-service fallback unsupported; isolated execution required')

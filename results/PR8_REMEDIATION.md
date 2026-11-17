@@ -1,3 +1,15 @@
+# Follow-up: independent execution backend (2026-11-18)
+
+[AUTHORITY_BACKEND.md](AUTHORITY_BACKEND.md) records the appended implementation
+and current validation. The earlier checkpoint below is retained as historical
+evidence. Production verification now uses the local trusted supervisor and a
+separate candidate container, rather than an unimplemented remote signing service.
+Both execution configuration and live model configuration remain disabled.
+Operational closure is still **BLOCKED** pending actual container/hosted validation
+and independent review; the prior green base-controller run does not establish it.
+
+## Previous remediation checkpoint (2026-11-17)
+
 # PR #8 security remediation — local verification
 
 This appends corrections to `9ab13c7c668eae22e816cdf3dca2488462df6493` on the

@@ -33,7 +33,8 @@ def main():
         if path.startswith('tests/'):
             require(value == source[path], 'original test changed')
     baseline_ids=json.loads((trusted/'workflow/config/baseline-case-ids.json').read_text())
-    result=execute(source,'ci-output',phase='testing',baseline_ids=baseline_ids,head_sha=actual)
+    result=execute(source,'ci-output',phase='testing',baseline_ids=baseline_ids,head_sha=actual,
+        binding={'kind':'pull_request','pull_request':event['pull_request']['number'],'base_sha':event['pull_request']['base']['sha']})
     result['head_sha']=actual
     Path('ci-output/result.json').write_text(json.dumps(result,indent=2)+'\n')
     require_authoritative(result)
