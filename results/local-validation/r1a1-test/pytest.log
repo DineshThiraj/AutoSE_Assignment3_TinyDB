@@ -1,0 +1,160 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0
+rootdir: /tmp/a3-final-local-validation-yaml-corrected/test_actual_tinydb_retry_and_s0/r1a1-test/source
+configfile: ../../../../../dev/null
+collected 232 items
+
+tests/test_autose_remove.py FFFF                                         [  1%]
+tests/test_middlewares.py .........                                      [  5%]
+tests/test_operations.py ..............                                  [ 11%]
+tests/test_queries.py ..................................                 [ 26%]
+tests/test_storages.py ..............                                    [ 32%]
+tests/test_tables.py ...............................                     [ 45%]
+tests/test_tinydb.py ................................................... [ 67%]
+...............................................................          [ 94%]
+tests/test_utils.py ............                                         [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_repeated_ids[memory] ___________________________
+
+db = <TinyDB tables=['_default', 'targets'], tables_count=2, default_table_documents_count=3, all_tables_documents_count=['_default=3', 'targets=3']>
+
+    def test_repeated_ids(db):
+        table = db.table('targets')
+        one, two, three = table.insert_multiple([{'value': 1}, {'value': 2}, {'value': 3}])
+>       assert table.remove(doc_ids=[two, one, two, 99999]) == [two, one]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_autose_remove.py:6: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinydb/table.py:662: in remove
+    self._update_table(updater)
+tinydb/table.py:840: in _update_table
+    updater(table)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+table = {3: {'value': 3}}
+
+    def updater(table: dict):
+        # Filter to IDs that exist *before* performing any removals,
+        # so the operation is atomic: either every existing target is
+        # removed, or none is.
+        removed_ids.extend(
+            doc_id for doc_id in requested_ids if doc_id in table
+        )
+        for doc_id in removed_ids:
+>           del table[doc_id]
+                ^^^^^^^^^^^^^
+E           KeyError: 2
+
+tinydb/table.py:659: KeyError
+___________________________ test_repeated_ids[json] ____________________________
+
+db = <TinyDB tables=['_default', 'targets'], tables_count=2, default_table_documents_count=3, all_tables_documents_count=['_default=3', 'targets=3']>
+
+    def test_repeated_ids(db):
+        table = db.table('targets')
+        one, two, three = table.insert_multiple([{'value': 1}, {'value': 2}, {'value': 3}])
+>       assert table.remove(doc_ids=[two, one, two, 99999]) == [two, one]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_autose_remove.py:6: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinydb/table.py:662: in remove
+    self._update_table(updater)
+tinydb/table.py:840: in _update_table
+    updater(table)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+table = {3: {'value': 3}}
+
+    def updater(table: dict):
+        # Filter to IDs that exist *before* performing any removals,
+        # so the operation is atomic: either every existing target is
+        # removed, or none is.
+        removed_ids.extend(
+            doc_id for doc_id in requested_ids if doc_id in table
+        )
+        for doc_id in removed_ids:
+>           del table[doc_id]
+                ^^^^^^^^^^^^^
+E           KeyError: 2
+
+tinydb/table.py:659: KeyError
+____________________ test_preserve_tables_and_cache[memory] ____________________
+
+db = <TinyDB tables=['_default', 'targets'], tables_count=2, default_table_documents_count=3, all_tables_documents_count=['_default=3', 'targets=2']>
+
+    def test_preserve_tables_and_cache(db):
+        table = db.table('targets')
+        one, two = table.insert_multiple([{'value': 1}, {'value': 2}])
+        query = Query().value > 0
+        assert len(table.search(query)) == 2
+>       assert table.remove(doc_ids=[one, one]) == [one]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_autose_remove.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinydb/table.py:662: in remove
+    self._update_table(updater)
+tinydb/table.py:840: in _update_table
+    updater(table)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+table = {2: {'value': 2}}
+
+    def updater(table: dict):
+        # Filter to IDs that exist *before* performing any removals,
+        # so the operation is atomic: either every existing target is
+        # removed, or none is.
+        removed_ids.extend(
+            doc_id for doc_id in requested_ids if doc_id in table
+        )
+        for doc_id in removed_ids:
+>           del table[doc_id]
+                ^^^^^^^^^^^^^
+E           KeyError: 1
+
+tinydb/table.py:659: KeyError
+_____________________ test_preserve_tables_and_cache[json] _____________________
+
+db = <TinyDB tables=['_default', 'targets'], tables_count=2, default_table_documents_count=3, all_tables_documents_count=['_default=3', 'targets=2']>
+
+    def test_preserve_tables_and_cache(db):
+        table = db.table('targets')
+        one, two = table.insert_multiple([{'value': 1}, {'value': 2}])
+        query = Query().value > 0
+        assert len(table.search(query)) == 2
+>       assert table.remove(doc_ids=[one, one]) == [one]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_autose_remove.py:14: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinydb/table.py:662: in remove
+    self._update_table(updater)
+tinydb/table.py:840: in _update_table
+    updater(table)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+table = {2: {'value': 2}}
+
+    def updater(table: dict):
+        # Filter to IDs that exist *before* performing any removals,
+        # so the operation is atomic: either every existing target is
+        # removed, or none is.
+        removed_ids.extend(
+            doc_id for doc_id in requested_ids if doc_id in table
+        )
+        for doc_id in removed_ids:
+>           del table[doc_id]
+                ^^^^^^^^^^^^^
+E           KeyError: 1
+
+tinydb/table.py:659: KeyError
+- generated xml file: /tmp/a3-final-local-validation-yaml-corrected/test_actual_tinydb_retry_and_s0/r1a1-test/output/junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_autose_remove.py::test_repeated_ids[memory] - KeyError: 2
+FAILED tests/test_autose_remove.py::test_repeated_ids[json] - KeyError: 2
+FAILED tests/test_autose_remove.py::test_preserve_tables_and_cache[memory] - ...
+FAILED tests/test_autose_remove.py::test_preserve_tables_and_cache[json] - Ke...
+======================== 4 failed, 228 passed in 0.39s =========================

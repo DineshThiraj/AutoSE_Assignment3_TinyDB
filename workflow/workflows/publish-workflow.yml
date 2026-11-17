@@ -1,6 +1,6 @@
 # Original preserved at the pinned commit and workflow/upstream-reference/publish-workflow.yml.
 name: Upstream package publishing disabled in assignment fork
-on:
+'on':
   workflow_dispatch: {}
 permissions: {}
 jobs:

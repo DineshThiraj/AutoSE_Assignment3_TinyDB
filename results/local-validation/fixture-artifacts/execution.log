@@ -1,0 +1,18 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.2.0, pluggy-1.7.0
+rootdir: /tmp/a3-final-local-validation-yaml-corrected/test_actual_tinydb_retry_and_s0/r1a2-test/source
+configfile: ../../../../../dev/null
+collected 232 items
+
+tests/test_autose_remove.py ....                                         [  1%]
+tests/test_middlewares.py .........                                      [  5%]
+tests/test_operations.py ..............                                  [ 11%]
+tests/test_queries.py ..................................                 [ 26%]
+tests/test_storages.py ..............                                    [ 32%]
+tests/test_tables.py ...............................                     [ 45%]
+tests/test_tinydb.py ................................................... [ 67%]
+...............................................................          [ 94%]
+tests/test_utils.py ............                                         [100%]
+
+- generated xml file: /tmp/a3-final-local-validation-yaml-corrected/test_actual_tinydb_retry_and_s0/r1a2-test/output/junit.xml -
+============================= 232 passed in 0.36s ==============================

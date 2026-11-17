@@ -1,0 +1,31 @@
+{
+  "recorded_at": "2026-11-17T08:40:13.658223+00:00",
+  "execution_kind": "local_fixture_unhosted",
+  "controller_tests": 66,
+  "controller_passed": 66,
+  "first_fixture_attempt": {
+    "total": 232,
+    "failed": 4,
+    "passed": 228
+  },
+  "bounded_repair": {
+    "total": 232,
+    "passed": 232,
+    "baseline_cases": 228,
+    "added_cases": 4
+  },
+  "hosted_actions_runs": 0,
+  "real_prs_created": 0,
+  "real_reviews_posted": 0,
+  "paid_model_calls": 0,
+  "hosted_model_tokens": null,
+  "coordinator_session_tokens": null,
+  "fixture_model_usage": "not applicable; test responses only",
+  "container_execution": "unverified; Docker daemon access denied",
+  "actionlint": "unavailable",
+  "source_baseline": "edff96aeb2616402e9489d46e90a592c05565621",
+  "design_commit": "67c9b3c4286f598d5d415fb60433870cf63035a8",
+  "command": "PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=workflow python -m pytest -c /dev/null -o addopts= -p no:cacheprovider workflow/tests",
+  "scope": "Actual TinyDB compile/pytest and controller tests; all model/publication/CI/review transports are deterministic test doubles.",
+  "history_note": "Initial implementation ba6fdaf9b79f0c7f2cb5a5e4d94ba4f021cc2c6c was committed after a static YAML parser test failed. Exact failure retained outside target in evidence/controller-before-yaml-key-fix.xml. Quoted YAML on keys fixed without resetting/amending history; current tests all pass. No remote publication."
+}

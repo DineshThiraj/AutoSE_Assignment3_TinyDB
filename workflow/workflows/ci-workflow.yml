@@ -1,6 +1,6 @@
 # Original preserved at the pinned commit and workflow/upstream-reference/ci-workflow.yml.
 name: Upstream CI disabled in assignment fork
-on:
+'on':
   workflow_dispatch: {}
 permissions: {}
 jobs:

@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/tests/test_autose_remove.py
+@@ -0,0 +1,16 @@
++from tinydb import Query
++
++def test_repeated_ids(db):
++    table = db.table('targets')
++    one, two, three = table.insert_multiple([{'value': 1}, {'value': 2}, {'value': 3}])
++    assert table.remove(doc_ids=[two, one, two, 99999]) == [two, one]
++    assert [d.doc_id for d in table.all()] == [three]
++
++def test_preserve_tables_and_cache(db):
++    table = db.table('targets')
++    one, two = table.insert_multiple([{'value': 1}, {'value': 2}])
++    query = Query().value > 0
++    assert len(table.search(query)) == 2
++    assert table.remove(doc_ids=[one, one]) == [one]
++    assert [d.doc_id for d in table.search(query)] == [two]
++    assert len(db) == 3
+--- a/tinydb/table.py
++++ b/tinydb/table.py
+@@ -462,7 +462,7 @@
+             # (see issue #591). The list of *actually* updated IDs is
+             # determined inside the updater so it reflects the table state at
+             # write time.
+-            requested_ids = list(doc_ids)
++            requested_ids = list(dict.fromkeys(doc_ids))
+             updated_ids: list[int] = []
+ 
+             def updater(table: dict):
+@@ -645,7 +645,7 @@
+             # ``get(doc_ids=...)`` (see issue #591). The list of *actually*
+             # removed IDs is determined inside the updater so it reflects the
+             # table state at write time.
+-            requested_ids = list(doc_ids)
++            requested_ids = list(dict.fromkeys(doc_ids))
+             removed_ids: list[int] = []
+ 
+             def updater(table: dict):
+@@ -852,3 +852,5 @@
+ 
+         # Clear the query cache, as the table contents have changed
+         self.clear_cache()
++
++# Deliberately ineffective fixture change.
