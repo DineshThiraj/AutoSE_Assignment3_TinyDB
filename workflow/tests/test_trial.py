@@ -11,7 +11,7 @@ from autose.broker import ResponsesBroker, live_preflight
 from autose.common import GateError, REPOSITORY
 from autose.github import APIError
 from autose.trial import Ledger, event_guard, response_cost, approval_scope_hash
-from trial_fixtures import MemoryGitHub, config, prepare_state
+from trial_fixtures import MemoryGitHub, config, prepare_state, FixtureConsumer
 
 
 @pytest.fixture
@@ -295,18 +295,19 @@ def test_budgeted_protocol_slice_executes_real_source_without_network(state,monk
         restored=load_artifact(directory);state.clear();state.update(restored)
         Ledger(g).reserve(state,c,phase)
         active['phase']=phase
-        return ResponsesBroker(c,ledger=Ledger(g),phase=phase)
+        return ResponsesBroker(c,ledger=Ledger(g),phase=phase,consumer=FixtureConsumer(Ledger(g),c))
     engine.requirements(state,broker('requirements'),REPO)
     engine.design(state,broker('design'),REPO)
     engine.implementation(state,broker('implementation'),REPO)
     engine.compile_stage(state,tmp_path/'build',local_fixture=True,python=PYTHON)
     engine.author_tests(state,broker('author-tests'),REPO)
-    engine.test_stage(state,tmp_path/'tests',baseline_ids=baseline_ids,local_fixture=True,python=PYTHON)
+    from conftest import FixtureVerifier
+    engine.test_stage(state,tmp_path/'tests',baseline_ids=baseline_ids,local_fixture=True,python=PYTHON,verifier=FixtureVerifier())
     assert state['execution']['passed'] and state['execution']['case_count']==232
     publisher=FixturePublisher();engine.release(state,publisher)
     engine.independent_review(state,broker('review'),REPO)
     engine.publish_review(state,publisher)
-    assert len(requests)==state['usage']['calls']==7 and len(g.refs)==6
+    assert len(requests)==state['usage']['calls']==7 and len(g.refs)==13
     assert state['usage']['tokens']==770 and state['usage']['estimated_usd']=='0.004804800'
     assert all(call['actual_model']=='gpt-6.1-sol' and call['service_tier']=='default' for call in state['calls'])
     assert readiness(state)['merge_authorized'] is False

@@ -100,6 +100,8 @@ class GitHub:
         from .common import passed
         passed(state, 'testing')
         require(state['execution_kind'] == 'hosted', 'fixture execution cannot publish')
+        from .verification import require_authoritative
+        require_authoritative(state.get('execution',{}),digest(encoded(state['source'])))
         require(state['repository'] == REPOSITORY, 'state repository mismatch')
         base_sha = sha(state['base_sha'])
         current = self.repo('GET', '/git/ref/heads/main')['object']['sha']

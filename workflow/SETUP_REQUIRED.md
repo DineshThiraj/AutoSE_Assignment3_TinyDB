@@ -1,5 +1,12 @@
 # Setup required before a real hosted slice
 
+PR #8 remediation adds two blocking prerequisites: a narrowly scoped durable
+per-call consumption service, and a separately audited independent test-verdict
+authority with a pinned public verification key. No service or authority has been
+deployed. Candidate JUnit is diagnostic; absent genuine independent verification,
+required CI and release fail closed. See results/PR8_REMEDIATION.md and
+workflow/config/test-authority.json (disabled). Keep live.json disabled.
+
 2026-11-17 correction checkpoint: main now exists and is protected with required
 tinydb-tests; hosted baseline run 44068724918 passed 228 tests and issues #3–#7 exist.
 The infrastructure paragraph below is historical bootstrap evidence, superseded by

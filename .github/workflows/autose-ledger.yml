@@ -18,6 +18,10 @@ name: AutoSE ledger phase
         required: false
         type: string
         default: requirements
+      target_job:
+        required: false
+        type: string
+        default: ''
     outputs:
       ready:
         value: ${{ jobs.phase.outputs.ready }}
@@ -76,6 +80,7 @@ jobs:
         PHASE: ${{ inputs.phase }}
         GITHUB_TOKEN: ${{ github.token }}
         TARGET_PHASE: ${{ inputs.target_phase }}
+        TARGET_JOB: ${{ inputs.target_job }}
       run: python -m autose.cli "$PHASE" --input input --output out --target-phase "$TARGET_PHASE"
     - uses: actions/upload-artifact@v4
       if: always()

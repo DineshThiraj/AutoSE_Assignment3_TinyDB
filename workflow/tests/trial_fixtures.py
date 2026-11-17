@@ -32,12 +32,22 @@ def config(state):
     trial['hard_cap'].update(enforced=True,currency='USD',limit_usd='100',remaining_usd='100',period_ends_at=now+4000)
     trial['secret'].update(available=True,name='AUTOSE_MODEL_API_KEY')
     trial['pricing']['schedule'] = PRICING
+    trial['call_consumer']={**copy.deepcopy(proof),'available':True,'url':'https://consumption.invalid/v1/consume'}
     result = {'enabled':True,'adapter':'openai-responses','model':MODEL,'effort':'medium','service_tier':'default',
             'token_budget':trial['max_tokens'],'max_output_tokens':100,'provider_support_evidence':'fixture only',
             'hard_cap_evidence':'fixture only','provider_cap_verified':True,'paid_authorized':True,
             'paid_authorization_evidence':'fixture only; NOT paid approval','authorization_expires_at':trial['expires_at'],'trial':trial}
     trial['approval']['scope_sha256'] = approval_scope_hash(result)
     return result
+
+
+class FixtureConsumer:
+    """Consumption service boundary double; no GitHub write token in broker."""
+    def __init__(self,ledger,config):
+        from autose.consumption import ConsumptionAuthority
+        self.authority=ConsumptionAuthority(ledger,config)
+
+    def consume(self,request):return self.authority.consume(request)
 
 
 class MemoryGitHub:

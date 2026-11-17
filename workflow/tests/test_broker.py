@@ -9,7 +9,7 @@ from autose.common import GateError
 
 
 from autose.trial import Ledger
-from trial_fixtures import MemoryGitHub, config, prepare_state
+from trial_fixtures import MemoryGitHub, config, prepare_state, FixtureConsumer
 
 
 def broker_for(state,phase):
@@ -18,7 +18,7 @@ def broker_for(state,phase):
     ledger=Ledger(MemoryGitHub())
     ledger.claim(state,cfg)
     ledger.reserve(state,cfg,phase)
-    return ResponsesBroker(cfg,ledger=ledger,phase=phase)
+    return ResponsesBroker(cfg,ledger=ledger,phase=phase,consumer=FixtureConsumer(ledger,cfg))
 
 
 def response(**changes):

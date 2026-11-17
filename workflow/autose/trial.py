@@ -36,6 +36,7 @@ def approval_scope_hash(config):
     scope = {k:t.get(k) for k in ('id','repository','issue','issue_hash','actor','approved_by','trigger_not_before',
                                  'project_id','currency','max_calls','max_tokens','max_usd','expires_at')}
     scope.update({k:config.get(k) for k in ('adapter','model','effort','service_tier','max_output_tokens')})
+    scope['consumer_url'] = t.get('call_consumer',{}).get('url')
     scope.update(max_seconds=2400,max_review_rounds=2,max_attempts_per_round=2)
     return digest(encoded(scope))
 
@@ -91,6 +92,11 @@ def preflight(config):
     for name in ('approval','provider_support','hard_cap','secret','pricing'):
         evidence(t.get(name), t['project_id'], now)
         require(t[name]['expires_at'] >= t['expires_at'], 'evidence expires before approval')
+    consumer = t.get('call_consumer')
+    evidence(consumer,t['project_id'],now)
+    require(consumer.get('available') is True and consumer['expires_at'] >= t['expires_at'], 'call consumption service unavailable')
+    from .services import https_url
+    https_url(consumer.get('url'))
     require(t['approval'].get('scope_sha256') == approval_scope_hash(config), 'paid approval scope mismatch')
     support = t['provider_support']
     require(support.get('available') is True and support.get('model') == MODEL and support.get('endpoint') == 'https://api.openai.com/v1/responses', 'provider unavailable/unverified')
@@ -181,7 +187,7 @@ class Ledger:
         record = {'identity':identity(state,config), 'kind':'claim'}
         state['trial_claim'] = self.create('claim', record)
 
-    def reserve(self, state, config, phase):
+    def reserve(self, state, config, phase, *, job_id=None):
         expected = identity(state,config)
         claim_sha, claim = self.read('claim')
         require(claim == {'identity':expected, 'kind':'claim'} and state.get('trial_claim') == claim_sha, 'trial already claimed by another run/config')
@@ -206,6 +212,9 @@ class Ledger:
                   'round':state['round'], 'attempt':state['attempt'], 'calls':calls,
                   'call_offset':totals['calls']-calls, 'totals':totals, 'input_ceiling':INPUT_CEILING,
                   'max_output_tokens':config['max_output_tokens'], 'pricing':PRICING}
+        job_id = job_id or phase
+        require(isinstance(job_id,str) and re.fullmatch('[a-z0-9_-]{1,100}',job_id), 'invalid paid job identity')
+        record['job_id'] = job_id
         record['used_phases'] = [*used_phases,phase_key]
         commit_sha = self.create('grant-' + str(seq), record, parent)
         state['trial_grant'] = {'sequence':seq, 'sha':commit_sha, 'reserved_totals':totals,
@@ -217,6 +226,8 @@ class Ledger:
         commit_sha, record = self.read('grant-' + str(integer(grant.get('sequence'), 1, 24, 'grant sequence')))
         require(commit_sha == grant.get('sha') and record['identity'] == expected, 'grant identity mismatch')
         require(record['phase'] == phase and record['round'] == state['round'] and record['attempt'] == state['attempt'], 'grant phase mismatch')
+        if os.environ.get('GITHUB_ACTIONS') == 'true':
+            require(os.environ.get('AUTOSE_JOB_ID') == record['job_id'], 'paid job identity mismatch')
         claim_sha, claim = self.read('claim')
         require(claim_sha == state.get('trial_claim') and claim == {'kind':'claim','identity':expected}, 'claim identity mismatch')
         return record

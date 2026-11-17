@@ -122,7 +122,7 @@ def main(argv=None):
                 from .broker import live_preflight
                 live_preflight(config,require_key=False)
                 if not skipped(state,args.target_phase):
-                    Ledger(GitHub()).reserve(state,config,args.target_phase)
+                    Ledger(GitHub()).reserve(state,config,args.target_phase,job_id=os.environ.get('TARGET_JOB'))
             if args.phase in ROLE_PHASES and not skip:
                 broker = ResponsesBroker(json_load(repo/'workflow/config/live.json'),phase=args.phase)
             if args.phase == 'requirements' and not skip:

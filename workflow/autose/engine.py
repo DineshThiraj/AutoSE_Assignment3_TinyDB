@@ -60,7 +60,7 @@ def admit(event, event_name, github, repository, *, run_id, run_attempt, config,
     require(current_issue['state'] == 'open' and 'pull_request' not in current_issue, 'issue not open')
     issue_data = {k:current_issue.get(k) or '' for k in ('number','title','body','html_url','updated_at')}
     require(isinstance(issue_data['body'], str) and 0 < len(issue_data['body'].encode()) < 40_000, 'empty/oversized issue')
-    require(not SECRET_PATTERN.search(issue_data['body']), 'credential-like issue material; stop before provider input')
+    require(not SECRET_PATTERN.search(encoded(issue_data)), 'credential-like issue material; stop before provider input')
     require(str(run_id).isdigit() and int(run_attempt) > 0, 'invalid run identity')
     # A stable branch is the durable issue-to-PR index. Reconcile completed/replayed
     # events before model calls; unfamiliar existing work stops instead of duplicating.
@@ -152,12 +152,14 @@ def test_stage(state, directory, *, baseline_ids, **execution_options):
     state['execution'] = result
     state['tested_source_hash'] = source_hash(state['source'])
     gate(state, 'testing', 'passed' if result['passed'] else 'failed',
-         'Fixed full original/new pytest execution and JUnit collection validation.',
+         'Candidate pytest is diagnostic; independent verified baseline/generated verdict required.',
          source_hash=state['tested_source_hash'], case_count=result.get('case_count'))
 
 
 def release(state, github):
     passed(state, 'testing')
+    from .verification import require_authoritative
+    require_authoritative(state.get('execution',{}),source_hash(state['source']))
     remaining(state)
     github.publish(state)
     wait_seconds = min(300, max(0, state['limits']['seconds'] - (time.time() - state['started_at'])))

@@ -95,6 +95,9 @@ def hosted_contract_state(state):
     state['execution_kind']='hosted'
     state['source']['tinydb/table.py']+='\n# fixture-only edit\n'
     state['tested_source_hash']=source_hash(state['source'])
+    state['execution']={'passed':True,'authoritative':True,'identity':{'source_sha256':state['tested_source_hash']}}
+    state['execution']['verification']={'record':{'identity':state['execution']['identity'],
+        'completed':True,'verdict':'passed','expires_at':time.time()+300}}
     gate(state,'testing','passed','fixture full-suite gate')
     return state
 
@@ -157,7 +160,7 @@ def test_source_identity_and_changed_base_stop(hosted_contract_state,api):
     api.main='f'*40
     with pytest.raises(GateError,match='base changed'):GitHub(transport=api).publish(hosted_contract_state)
     api.main='a'*40;hosted_contract_state['source']['tinydb/table.py']+='changed'
-    with pytest.raises(GateError,match='tested source identity'):GitHub(transport=api).publish(hosted_contract_state)
+    with pytest.raises(GateError,match='source identity'):GitHub(transport=api).publish(hosted_contract_state)
 
 
 @pytest.mark.parametrize('mode',['stale','missing','pending'])

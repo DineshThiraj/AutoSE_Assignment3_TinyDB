@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from .common import GateError, ROLE_IDENTITY, budget, digest, encoded, require
+from .common import GateError, ROLE_IDENTITY, SECRET_PATTERN, budget, digest, encoded, require
 from .trial import Ledger, PHASE_CALLS, identity, preflight, response_cost, usd
 from .github import GitHub
 
@@ -40,11 +40,12 @@ class ResponsesBroker:
     No retry or fallback provider/model is implicit.
     """
 
-    def __init__(self, config, *, ledger=None, phase=None):
+    def __init__(self, config, *, ledger=None, phase=None, consumer=None):
         live_preflight(config)
         self.config = config
         self.ledger = ledger if ledger is not None else Ledger(GitHub())
         self.phase = phase
+        self.consumer = consumer
 
     def ask(self, state, role, instruction, context):
         require(state['execution_kind'] == 'hosted', 'live broker forbidden in fixture execution')
@@ -56,14 +57,13 @@ class ResponsesBroker:
         used = sum(c.get('grant_sha') == grant_sha for c in state.get('calls', []))
         require(used < grant['calls'], 'reserved phase calls exhausted')
         payload = encoded(context)
+        require(not SECRET_PATTERN.search(payload) and not SECRET_PATTERN.search(instruction), 'credential-like outbound input; stop before provider input')
         max_output = self.config['max_output_tokens']
         budget(state, reserve_output=len(payload.encode()) + len(instruction.encode()) + max_output + 2000)
         require(len(payload.encode()) < 800_000, 'model input size ceiling')
-        state['usage']['calls'] += 1
-        state['usage']['unknown'] = True  # Preserve uncertain spend if the call fails.
         require(role in ROLE_IDENTITY, 'unknown reasoning role/stage')
         trace = {'role':ROLE_IDENTITY[role],'stage':role,'model':self.config['model'],'effort':self.config['effort'],
-                 'input_hash':digest(payload),'usage':None,'status':'request_started',
+                 'input_hash':digest(payload),'usage':None,'status':'authorization_pending',
                  'grant_sha':grant_sha,'grant_call':used+1,'cost':None}
         state.setdefault('calls', []).append(trace)
         request_body = {
@@ -75,6 +75,13 @@ class ResponsesBroker:
             'instructions': instruction,
             'input': [{'role': 'user', 'content': [{'type': 'input_text', 'text': payload}]}],
         }
+        # The remote call slot, not this checkpoint's counter, is authoritative.
+        # Any duplicate/lost consume response burns the slot and stops before HTTP.
+        from .consumption import CallConsumer, call_request
+        consumer = self.consumer if self.consumer is not None else CallConsumer(self.config, self.ledger)
+        consumption = call_request(state, grant, self.phase, used+1, digest(encoded(request_body)))
+        trace['consumption'] = consumer.consume(consumption)
+        trace['status'] = 'authorized_not_sent'
         req = urllib.request.Request('https://api.openai.com/v1/responses',
             data=encoded(request_body).encode(), method='POST',
             headers={'Authorization': 'Bearer ' + os.environ['AUTOSE_MODEL_API_KEY'], 'Content-Type': 'application/json',
@@ -90,6 +97,9 @@ class ResponsesBroker:
                     return None
             timeout = min(900, 2400-(time.time()-state['started_at']), self.config['trial']['expires_at']-time.time())
             require(timeout > 0, 'paid request deadline expired')
+            state['usage']['calls'] += 1
+            state['usage']['unknown'] = True
+            trace['status'] = 'request_started'
             with urllib.request.build_opener(NoRedirect()).open(req, timeout=timeout) as response:
                 raw = response.read(2_000_001)
             require(len(raw) <= 2_000_000, 'provider response too large')

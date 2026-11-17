@@ -27,6 +27,9 @@ name: AutoSE execute phase
         value: ${{ jobs.phase.outputs.want_tests }}
       base_sha:
         value: ${{ jobs.phase.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN:
+        required: false
 permissions: {}
 jobs:
   phase:
@@ -74,6 +77,8 @@ jobs:
       env:
         PYTHONPATH: workflow
         PHASE: ${{ inputs.phase }}
+        AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
+        AUTOSE_JOB_ID: ${{ inputs.prefix }}
       run: python -m autose.cli "$PHASE" --input input --output out
     - uses: actions/upload-artifact@v4
       if: always()

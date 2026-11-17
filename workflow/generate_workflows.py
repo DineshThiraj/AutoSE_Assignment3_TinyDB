@@ -18,19 +18,27 @@ for kind in ('broker','execute','publish','data','ledger'):
   steps.append({'name':'Build trusted test environment before target mount','run':'docker build -t autose-pytest:trusted -f workflow/Dockerfile workflow\ndocker image inspect autose-pytest:trusted --format "{{.Id}}" > image-id.txt'})
  env={'PYTHONPATH':'workflow','PHASE':'${{ inputs.phase }}'}
  if kind=='broker': env['AUTOSE_MODEL_API_KEY']='${{ secrets.AUTOSE_MODEL_API_KEY }}'
+ if kind=='broker':
+  env['AUTOSE_CONSUMER_TOKEN']='${{ secrets.AUTOSE_CONSUMER_TOKEN }}'
+  env['AUTOSE_JOB_ID']='${{ inputs.prefix }}'
+ if kind=='execute':
+  env['AUTOSE_TEST_AUTH_TOKEN']='${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}'
+  env['AUTOSE_JOB_ID']='${{ inputs.prefix }}'
  if kind in {'broker','publish','ledger'}: env['GITHUB_TOKEN']='${{ github.token }}'
  # Data repair takes a named input artifact, unlike selection of multiple artifacts.
  command='python -m autose.cli "$PHASE" --input input --output out'
  if kind=='ledger':
   env['TARGET_PHASE']='${{ inputs.target_phase }}'
+  env['TARGET_JOB']='${{ inputs.target_job }}'
   command+=' --target-phase "$TARGET_PHASE"'
  steps.extend([{'name':'Execute trusted phase','id':'run','env':env,'run':command},
                {'uses':'actions/upload-artifact@v4','if':'always()','with':{'name':'${{ inputs.prefix }}-attempt-${{ github.run_attempt }}','path':'out/','if-no-files-found':'error','retention-days':90}}])
  phase={'runs-on':'ubuntu-latest','timeout-minutes':20 if kind=='broker' else 10,'permissions':permissions,
         'outputs':{k:'${{ steps.run.outputs.'+k+' }}' for k in baseout},'steps':steps}
  call={'inputs':inputs,'outputs':baseout}
- if kind=='ledger': call['inputs']={**inputs,'target_phase':{'required':False,'type':'string','default':'requirements'}}
- if kind=='broker': call['secrets']={'AUTOSE_MODEL_API_KEY':{'required':False}}
+ if kind=='ledger': call['inputs']={**inputs,'target_phase':{'required':False,'type':'string','default':'requirements'},'target_job':{'required':False,'type':'string','default':''}}
+ if kind=='broker': call['secrets']={k:{'required':False} for k in ('AUTOSE_MODEL_API_KEY','AUTOSE_CONSUMER_TOKEN')}
+ if kind=='execute':call['secrets']={'AUTOSE_TEST_AUTH_TOKEN':{'required':False}}
  doc={'name':'AutoSE '+kind+' phase','on':{'workflow_call':call},'permissions':{},'jobs':{'phase':phase}}
  (repo/'.github/workflows'/f'autose-{kind}.yml').write_text(yaml.safe_dump(doc,sort_keys=False,width=120))
 
@@ -40,6 +48,7 @@ def guard(prev,key='ready'):
 def call(name,phase,previous,kind='broker',condition=None,needs=None,pattern=None,target_phase=None):
  if kind=='broker':
   reservation=call(name+'_budget','reserve',previous,'ledger',condition,needs,pattern,target_phase=phase)
+  jobs[reservation]['with']['target_job']=name
   previous,condition,needs,pattern=reservation,None,None,None
  perms={'contents':'read','actions':'read'}
  if kind=='publish':perms.update({'contents':'write','pull-requests':'write','actions':'read'})
@@ -47,7 +56,8 @@ def call(name,phase,previous,kind='broker',condition=None,needs=None,pattern=Non
  j={'needs':needs or [previous], 'if':condition or guard(previous), 'uses':f'./.github/workflows/autose-{kind}.yml',
     'permissions':perms, 'with':{'phase':phase,'prefix':name,'prior':pattern or previous,'base_sha':'${{ needs.admission.outputs.base_sha }}'}}
  if 'admission' not in j['needs']: j['needs'].append('admission')
- if kind=='broker':j['secrets']={'AUTOSE_MODEL_API_KEY':'${{ secrets.AUTOSE_MODEL_API_KEY }}'}
+ if kind=='broker':j['secrets']={k:'${{ secrets.'+k+' }}' for k in ('AUTOSE_MODEL_API_KEY','AUTOSE_CONSUMER_TOKEN')}
+ if kind=='execute':j['secrets']={'AUTOSE_TEST_AUTH_TOKEN':'${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}'}
  if target_phase:j['with']['target_phase']=target_phase
  jobs[name]=j
  return name
@@ -90,8 +100,8 @@ ci={'name':'AutoSE exact-head CI','on':{'pull_request':{'branches':['main']}},'p
   {'uses':'actions/checkout@v4','with':{'ref':'${{ github.event.pull_request.head.sha }}','path':'candidate','persist-credentials':False}},
   {'uses':'actions/setup-python@v5','with':{'python-version':'3.12'}},
   {'name':'Build trusted image','run':'docker build -t autose-pytest:trusted -f trusted/workflow/Dockerfile trusted/workflow'},
-  {'name':'Test exact PR head in isolated container','env':{'PYTHONPATH':'trusted/workflow'},'run':'python trusted/workflow/ci_exact.py'},
+  {'name':'Test exact PR head in isolated container and require independent verification','env':{'PYTHONPATH':'trusted/workflow','AUTOSE_TEST_AUTH_TOKEN':'${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}'},'run':'python trusted/workflow/ci_exact.py'},
   {'uses':'actions/upload-artifact@v4','if':'always()','with':{'name':'exact-head-test-evidence-attempt-${{ github.run_attempt }}','path':'ci-output/','retention-days':90}}]}}}
 (repo/'.github/workflows/autose-ci.yml').write_text(yaml.safe_dump(ci,sort_keys=False,width=120))
 for p in (repo/'.github/workflows').glob('autose*.yml'):shutil.copy2(p,repo/'workflow/workflows'/p.name)
-print('Generated',len(jobs),'statically bounded jobs; secret only passed to broker jobs. New autose workflows mirrored.')
+print('Generated',len(jobs),'statically bounded jobs; model key only in broker, service credentials scoped. Workflows mirrored.')

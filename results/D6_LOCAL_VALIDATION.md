@@ -1,5 +1,10 @@
 # D6 correction validation — 2026-11-17
 
+Historical result for the first D6 commit, before PR #8's adversarial security
+review. It did not establish hostile-candidate report integrity or atomic per-call
+consumption. Current corrections, new checks and unresolved operational authority
+requirements are in [PR8_REMEDIATION.md](PR8_REMEDIATION.md).
+
 Review base: remote main `929f21ae6dfdfdc52473b5602a328c0d77d44023`, rechecked
 through the read-only GitHub connector. The exact signed main commit was imported
 locally and its object hash verified; the new review branch preserves that parent.

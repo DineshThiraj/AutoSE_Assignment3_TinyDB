@@ -1,5 +1,14 @@
 # One issue-3 trial: reviewable controls, live disabled
 
+PR #8 security corrections supersede the earlier claim that reservations alone
+prevent same-attempt replay. Every provider call now needs an atomically consumed
+remote slot through a consumption-only service; read-only broker/reviewer jobs
+cannot move refs. Candidate JUnit is diagnostic, and independent signed baseline/
+generated verification is required before testing/release/CI pass. Both live and
+test-authority configurations remain disabled. See
+[the remediation report](../results/PR8_REMEDIATION.md) for demonstrated behavior,
+external deployment blockers and the incomplete operational test-authority path.
+
 This change prepares controls. It does not select an approved student model, supply
 account evidence, authorize payment or demonstrate hosted execution. `live.json`
 remains disabled with `trial: null`. Existing design decisions and source/tests stay
@@ -12,7 +21,7 @@ collaborator permission and all existing repository/protection gates still apply
 The approved scope hash covers number, title, body and URL; the admission snapshot
 also hashes `updated_at`, which can legitimately change when the comment is posted.
 
-The new ledger job has contents write and Actions read, no provider secret and no
+The ledger job has contents write and Actions read, no provider secret and no
 target execution. It creates an isolated audit-data Git history, rooted at a commit
 containing only `ledger.json`; this is not replacement TinyDB source history.
 `refs/tags/autose-d6-issue-3-claim` binds the only trial to one run, configuration,
@@ -28,6 +37,14 @@ the trial's smaller numerical budgets can stop earlier. `GITHUB_RUN_ATTEMPT != 1
 is rejected by admission, ledger and broker. Re-running a failed job or whole workflow
 does not grant paid recovery. Even another approval ID cannot reopen the fixed claim.
 Do not delete these audit tags to make a retry work.
+
+The consumption-only authority also creates `...-consume-N-K` atomically before
+each provider call. It validates the immutable grant, numerical envelope, exact
+run/job/attempt, fixed slot and request hash. Uncertain consumption stays burned.
+`trial.call_consumer` needs the same fresh project-bound evidence fields as other
+records, `available: true` and an approved HTTPS URL; that URL is part of the paid
+scope hash. The broker receives only `AUTOSE_CONSUMER_TOKEN`, not the service's
+GitHub write credential. No such service/token/evidence is provisioned here.
 
 Reservations use the documented model's entire 1,050,000-token context plus the
 approved output maximum **per call**, rather than guessing input tokens from bytes.
@@ -111,12 +128,17 @@ COMMENT and cannot become a platform APPROVED review. No merge operation was add
 `merge_authorized` remains false and the final merge decision remains human.
 
 Security assumptions: GitHub atomically creates unique refs and faithfully supplies
-run/job identity; trusted workflow jobs execute each logical job once per attempt.
+run/job identity. Exactly-once broker execution is no longer assumed: duplicate
+same-attempt copies must win the same one-use external slot, or stop.
 Repository administrators do not rewrite/delete ledger tags or bypass reviewed
 controller code. Provider honors the requested default tier, model context/output
 limits and verified rates. Attestations correctly bind the project/key. There is
 no guarantee against a compromised provider, platform, administrator or dependency.
 The model and candidate code receive none of those administrative capabilities.
+The separately audited test authority must establish genuine independent baseline
+and generated execution; its signature must never just certify candidate XML.
+The checked-in adapter has no signer or actual execution backend. Missing genuine
+verification leaves required CI/release blocked rather than accepting the report.
 
 Local verification from repository root (no inference or workflow trigger):
 

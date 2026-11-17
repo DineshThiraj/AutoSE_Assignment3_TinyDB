@@ -73,6 +73,7 @@ jobs:
       prior: trial_claim
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: requirements
+      target_job: r1_requirements
   r1_requirements:
     needs:
     - r1_requirements_budget
@@ -89,6 +90,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1_design_budget:
     needs:
     - r1_requirements
@@ -104,6 +106,7 @@ jobs:
       prior: r1_requirements
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: design
+      target_job: r1_design
   r1_design:
     needs:
     - r1_design_budget
@@ -120,6 +123,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1a1_impl_budget:
     needs:
     - r1_design
@@ -135,6 +139,7 @@ jobs:
       prior: r1_design
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: implementation
+      target_job: r1a1_impl
   r1a1_impl:
     needs:
     - r1a1_impl_budget
@@ -151,6 +156,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1a1_build:
     needs:
     - r1a1_impl
@@ -165,6 +171,8 @@ jobs:
       prefix: r1a1_build
       prior: r1a1_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a1_author_budget:
     needs:
     - r1a1_build
@@ -180,6 +188,7 @@ jobs:
       prior: r1a1_build
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: author-tests
+      target_job: r1a1_author
   r1a1_author:
     needs:
     - r1a1_author_budget
@@ -196,6 +205,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1a1_tests:
     needs:
     - r1a1_author
@@ -210,6 +220,8 @@ jobs:
       prefix: r1a1_tests
       prior: r1a1_author
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a1_result:
     needs:
     - r1a1_impl
@@ -256,6 +268,7 @@ jobs:
       prior: r1a2_start
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: implementation
+      target_job: r1a2_impl
   r1a2_impl:
     needs:
     - r1a2_impl_budget
@@ -272,6 +285,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1a2_build:
     needs:
     - r1a2_impl
@@ -286,6 +300,8 @@ jobs:
       prefix: r1a2_build
       prior: r1a2_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a2_author_budget:
     needs:
     - r1a2_build
@@ -301,6 +317,7 @@ jobs:
       prior: r1a2_build
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: author-tests
+      target_job: r1a2_author
   r1a2_author:
     needs:
     - r1a2_author_budget
@@ -317,6 +334,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1a2_tests:
     needs:
     - r1a2_author
@@ -331,6 +349,8 @@ jobs:
       prefix: r1a2_tests
       prior: r1a2_author
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1a2_result:
     needs:
     - r1a2_impl
@@ -393,6 +413,7 @@ jobs:
       prior: r1_release
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: review
+      target_job: r1_review
   r1_review:
     needs:
     - r1_review_budget
@@ -409,6 +430,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1_review_tests:
     needs:
     - r1_review
@@ -423,6 +445,8 @@ jobs:
       prefix: r1_review_tests
       prior: r1_review
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r1_review_final_budget:
     needs:
     - r1_review_tests
@@ -438,6 +462,7 @@ jobs:
       prior: r1_review_tests
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: review-final
+      target_job: r1_review_final
   r1_review_final:
     needs:
     - r1_review_final_budget
@@ -454,6 +479,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r1_post:
     needs:
     - r1_review_final
@@ -498,6 +524,7 @@ jobs:
       prior: r2_start
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: requirements
+      target_job: r2_requirements
   r2_requirements:
     needs:
     - r2_requirements_budget
@@ -514,6 +541,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2_design_budget:
     needs:
     - r2_requirements
@@ -529,6 +557,7 @@ jobs:
       prior: r2_requirements
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: design
+      target_job: r2_design
   r2_design:
     needs:
     - r2_design_budget
@@ -545,6 +574,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2a1_impl_budget:
     needs:
     - r2_design
@@ -560,6 +590,7 @@ jobs:
       prior: r2_design
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: implementation
+      target_job: r2a1_impl
   r2a1_impl:
     needs:
     - r2a1_impl_budget
@@ -576,6 +607,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2a1_build:
     needs:
     - r2a1_impl
@@ -590,6 +622,8 @@ jobs:
       prefix: r2a1_build
       prior: r2a1_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a1_author_budget:
     needs:
     - r2a1_build
@@ -605,6 +639,7 @@ jobs:
       prior: r2a1_build
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: author-tests
+      target_job: r2a1_author
   r2a1_author:
     needs:
     - r2a1_author_budget
@@ -621,6 +656,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2a1_tests:
     needs:
     - r2a1_author
@@ -635,6 +671,8 @@ jobs:
       prefix: r2a1_tests
       prior: r2a1_author
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a1_result:
     needs:
     - r2a1_impl
@@ -681,6 +719,7 @@ jobs:
       prior: r2a2_start
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: implementation
+      target_job: r2a2_impl
   r2a2_impl:
     needs:
     - r2a2_impl_budget
@@ -697,6 +736,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2a2_build:
     needs:
     - r2a2_impl
@@ -711,6 +751,8 @@ jobs:
       prefix: r2a2_build
       prior: r2a2_impl
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a2_author_budget:
     needs:
     - r2a2_build
@@ -726,6 +768,7 @@ jobs:
       prior: r2a2_build
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: author-tests
+      target_job: r2a2_author
   r2a2_author:
     needs:
     - r2a2_author_budget
@@ -742,6 +785,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2a2_tests:
     needs:
     - r2a2_author
@@ -756,6 +800,8 @@ jobs:
       prefix: r2a2_tests
       prior: r2a2_author
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2a2_result:
     needs:
     - r2a2_impl
@@ -818,6 +864,7 @@ jobs:
       prior: r2_release
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: review
+      target_job: r2_review
   r2_review:
     needs:
     - r2_review_budget
@@ -834,6 +881,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2_review_tests:
     needs:
     - r2_review
@@ -848,6 +896,8 @@ jobs:
       prefix: r2_review_tests
       prior: r2_review
       base_sha: ${{ needs.admission.outputs.base_sha }}
+    secrets:
+      AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
   r2_review_final_budget:
     needs:
     - r2_review_tests
@@ -863,6 +913,7 @@ jobs:
       prior: r2_review_tests
       base_sha: ${{ needs.admission.outputs.base_sha }}
       target_phase: review-final
+      target_job: r2_review_final
   r2_review_final:
     needs:
     - r2_review_final_budget
@@ -879,6 +930,7 @@ jobs:
       base_sha: ${{ needs.admission.outputs.base_sha }}
     secrets:
       AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+      AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
   r2_post:
     needs:
     - r2_review_final

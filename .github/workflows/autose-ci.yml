@@ -26,9 +26,10 @@ jobs:
         python-version: '3.12'
     - name: Build trusted image
       run: docker build -t autose-pytest:trusted -f trusted/workflow/Dockerfile trusted/workflow
-    - name: Test exact PR head in isolated container
+    - name: Test exact PR head in isolated container and require independent verification
       env:
         PYTHONPATH: trusted/workflow
+        AUTOSE_TEST_AUTH_TOKEN: ${{ secrets.AUTOSE_TEST_AUTH_TOKEN }}
       run: python trusted/workflow/ci_exact.py
     - uses: actions/upload-artifact@v4
       if: always()
