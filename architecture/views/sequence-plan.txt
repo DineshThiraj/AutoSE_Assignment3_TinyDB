@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant M as Maintainer
+    participant C as Trusted controller
+    participant A as Reasoning roles
+    participant T as Isolated test job
+    participant P as Trusted publisher
+    participant R as Independent reviewer
+    Note over M,R: PROPOSED ONLY - replace with sequence of a real hosted run
+    M->>C: Authorized issue label/comment
+    C->>C: Verify owner/actor, freeze inputs, deduplicate
+    C->>A: Requirements with actual A1 skill
+    A-->>C: spec and validation artifacts
+    C->>A: Design with actual A2 architecture
+    A-->>C: file/function plan
+    C->>A: Implement and author AC tests
+    A-->>C: patch and AC mapping
+    C->>T: Fixed build and full tests, no secrets
+    T-->>C: Logs and JUnit
+    alt Gate fails within repair budget
+        C->>A: Return to appropriate earlier stage
+    else Build and tests pass
+        C->>P: Release branch and PR
+        P-->>C: PR URL and actual CI at exact head
+        C->>R: Issue, diff, latest source only
+        R-->>C: Findings and verdict
+        C->>P: Publish review
+        Note over C,R: Route requested fixes; at most two total review rounds
+    end
+    C-->>M: Terminal evidence; human decides merge or close

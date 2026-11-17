@@ -1,0 +1,21 @@
+digraph Sequence {
+graph [rankdir=TB, labelloc=t, label="PROPOSED sequence — real hosted run pending"];
+node [shape=box,style=rounded];
+admit [label="Maintainer issue trigger → authorize / freeze / deduplicate"];
+req [label="1 Requirements broker: A1 → spec + readiness gate"];
+design [label="2 Design broker: A2 → file/function plan + gate"];
+impl [label="3 Implementer → allowlisted edits → isolated compile gate"];
+test [label="4 Test author → isolated full original/new tests"];
+release [label="5 Publisher → branch / open PR → exact-head CI gate"];
+review [label="6 Fresh reviewer: issue / diff / latest source → posted review"];
+human [label="Terminal evidence → human merge or close decision"];
+stop [label="Blocked artifact: needs_clarification / failed gate / budget / pending CI"];
+admit -> req -> design -> impl -> test -> release -> review -> human;
+test -> impl [label="fail, within two attempts/round"];
+review -> req [label="requirements finding, review rounds < 2"];
+review -> design [label="design finding, rounds < 2"];
+review -> impl [label="implementation finding, rounds < 2"];
+review -> test [label="testing finding, rounds < 2"];
+req -> stop [label="critical ambiguity"];
+release -> stop [label="CI not verified"];
+}

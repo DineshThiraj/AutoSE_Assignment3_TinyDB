@@ -1,0 +1,41 @@
+digraph Architecture {
+ graph [rankdir=LR, label="Reviewed initial design — implementation and hosted evidence pending", labelloc=t, fontsize=20];
+ node [shape=box, style=rounded, fontsize=11];
+ trigger [label="Maintainer label or comment"];
+ controller [label="Trusted deterministic controller
+authorize / freeze / route / budgets"];
+ broker [label="Trusted model broker
+provider key; no target execution"];
+ roles [label="Fresh requirements / design / implement-test roles
+bounded source reads + edit proposals
+actual A1 skill and A2 architecture"];
+ worker [label="Disposable build + test executor
+no model key; no write token
+fixed compile / full pytest"];
+ release [label="Trusted fork-only publisher
+push branch / create PR / verify CI
+write token; never executes patch"];
+ reviewer [label="Independent fresh reviewer
+issue + diff + latest source only
+no edit or push tools"];
+ reviewrun [label="Disposable reviewer test executor
+fixed tests; no secrets / push"];
+ evidence [label="Immutable attempt artifacts
+SHA manifests / logs / gates"];
+ human [label="Human merge or close decision"];
+ trigger -> controller;
+ controller -> broker;
+ broker -> roles [label="role requests"];
+ roles -> controller [label="validated artifacts / patch"];
+ controller -> worker [label="validated patch"];
+ worker -> controller [label="compile + test results"];
+ controller -> release [label="only after test gate"];
+ release -> controller [label="PR + exact-head CI"];
+ broker -> reviewer [label="fresh isolated request after CI"];
+ reviewer -> reviewrun [label="fixed test request"];
+ reviewrun -> reviewer [label="output"];
+ reviewer -> controller [label="verdict / affected stage"];
+ controller -> release [label="publish review only"];
+ controller -> evidence;
+ release -> human [label="reviewed PR; never merge"];
+}

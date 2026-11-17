@@ -1,0 +1,111 @@
+{
+  "received_date": "2026-11-17",
+  "source": "User D1–D10 message in current conversation",
+  "reason_field_label": "suggested reason",
+  "transcribed_by": "Codex",
+  "accepted_substantive_count": 9,
+  "paid_authorization": false,
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Splitting the work",
+      "choice": "Four reasoning roles for requirements, design, implementation/testing and independent review, with deterministic testing and release control",
+      "suggested_reason": "This separates responsibilities without the overhead of six separate reasoning agents, and allows the A1 and A2 artifacts to be reused",
+      "rejected": "One agent handling everything",
+      "rejected_reason": "It mixes implementation, verification and review context, making independent review less credible",
+      "accepted_drawback": "More hand-offs and model-context overhead.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D2",
+      "title": "Control flow",
+      "choice": "Deterministic state machine with explicit stage gates and two total review rounds",
+      "suggested_reason": "The six required stages and retry boundaries should be enforced by code rather than model discretion",
+      "rejected": "Unrestricted model planner",
+      "rejected_reason": "It could skip checks or repeatedly retry without respecting the budget",
+      "accepted_drawback": "More controller code and less flexibility.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D3",
+      "title": "Handoffs",
+      "choice": "Full validated specification and design artifacts for implementation, and a separate restricted reviewer context",
+      "suggested_reason": "This preserves acceptance criteria and architecture constraints across hand-offs",
+      "rejected": "Passing complete conversations to every agent",
+      "rejected_reason": "It wastes context and could bias the reviewer",
+      "accepted_drawback": "Higher token usage.",
+      "status": "Accepted",
+      "vague_issue_rule": "For vague issues, the A1 readiness gate must verify that acceptance criteria are testable. If critical requirements remain ambiguous, save the draft spec and clarification questions, stop with needs_clarification, and resume only after an authorized clarification. Do not invent requirements."
+    },
+    {
+      "id": "D4",
+      "title": "State",
+      "choice": "Immutable execution artifacts, unique attempt identifiers, hashes and a durable run-to-PR index",
+      "suggested_reason": "Failures and interrupted runs should remain traceable, while restarts must check existing branches and PRs to prevent duplicates",
+      "rejected": "Using Actions cache as the authoritative state",
+      "rejected_reason": "Cache availability and retention are unsuitable for recovery and grading evidence",
+      "accepted_drawback": "Additional storage and reconciliation logic.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D5",
+      "title": "Tools",
+      "choice": "Restricted model-broker tools with isolated patch application, test execution and a separate GitHub publisher",
+      "suggested_reason": "Untrusted generated code and tests must not execute with provider credentials or repository write authority",
+      "rejected": "One general shell agent holding all credentials",
+      "rejected_reason": "It creates unnecessary exposure to malicious code or prompt injection",
+      "accepted_drawback": "Additional validation, isolation and artifact transfers.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D6",
+      "title": "Models",
+      "choice": "Defer exact hosted provider, model and reasoning effort",
+      "suggested_reason": "Local Codex authentication does not establish API availability or cost controls within GitHub Actions. Select a supported model after verifying provider access and a hard spending cap",
+      "rejected": "Choosing an unverified model or silently changing models across experiments",
+      "rejected_reason": "This risks failed hosted execution and confounded comparisons",
+      "accepted_drawback": "Hosted model-driven runs remain blocked until the model configuration is approved.",
+      "status": "Deferred"
+    },
+    {
+      "id": "D7",
+      "title": "Stage checks",
+      "choice": "Deterministic structural checks, real build and test execution, exact-commit CI, plus targeted semantic checks",
+      "suggested_reason": "Tests and recorded CI status provide stronger evidence than agent-generated success statements",
+      "rejected": "Trusting an agent's claim that its stage passed",
+      "rejected_reason": "It does not prove which commands ran or which commit was tested",
+      "accepted_drawback": "Additional verification time and imperfect defect coverage.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D8",
+      "title": "Reviewer independence",
+      "choice": "Fresh independent reviewer context, separate prompt, sanitized latest PR source and diff, with no push tools",
+      "suggested_reason": "The reviewer must evaluate the actual change without relying on implementation reasoning, and seeded cases can measure its mistakes",
+      "rejected": "The implementer reviewing its own work in the same conversation",
+      "rejected_reason": "Its previous assumptions can influence the outcome",
+      "accepted_drawback": "Additional cost, latency and possible false positives or missed defects.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D9",
+      "title": "Safety and failures",
+      "choice": "Provider spending cap, enforced timeouts, retry budgets, model-call limits and fail-closed errors",
+      "suggested_reason": "Trusted code must enforce safety limits because prompt instructions alone cannot guarantee them",
+      "rejected": "Unlimited retries with prompt-only safety instructions",
+      "rejected_reason": "This permits uncontrolled execution or spending",
+      "accepted_drawback": "Some legitimate difficult tasks may stop unfinished.",
+      "status": "Accepted"
+    },
+    {
+      "id": "D10",
+      "title": "Triggers",
+      "choice": "Authorized maintainer-applied autose label or exact /autose issue comment, with permission checks and duplicate-event handling",
+      "suggested_reason": "This provides a convenient GitHub trigger without allowing arbitrary issue authors to initiate costly work",
+      "rejected": "Allowing every issue author to trigger the workflow",
+      "rejected_reason": "Issue authorship does not establish current repository write permissions",
+      "accepted_drawback": "Additional authorization, concurrency and idempotency logic.",
+      "status": "Accepted"
+    }
+  ]
+}
