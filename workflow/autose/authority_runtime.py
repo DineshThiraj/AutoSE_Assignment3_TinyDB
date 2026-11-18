@@ -12,7 +12,6 @@ import authority_bridge as bridge
 from authority_dsl import check, Evaluator
 
 def main():
-    resource.setrlimit(resource.RLIMIT_AS,(768*1024*1024,768*1024*1024))
     resource.setrlimit(resource.RLIMIT_CPU,(120,120))
     parser=argparse.ArgumentParser()
     parser.add_argument('--control',required=True)
@@ -21,8 +20,22 @@ def main():
     root=Path(config['tests_root'])
     import authority_fs
     authority_fs.install(config['scratch'])
-    process=subprocess.Popen(config['worker_argv'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
-        stderr=open(config['worker_log'],'wb'),cwd=config['worker_cwd'],env=config['worker_env'],bufsize=0)
+    with open(config['worker_log'], 'wb') as worker_log:
+        process = subprocess.Popen(
+            config['worker_argv'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=worker_log, cwd=config['worker_cwd'], env=config['worker_env'], bufsize=0,
+        )
+        try:
+            # The Docker CLI needs its inherited address space. The worker waits
+            # for an RPC request, and the supervisor sends none before this cap.
+            resource.setrlimit(resource.RLIMIT_AS, (768 * 1024 * 1024,) * 2)
+        except BaseException:
+            with process.stdin, process.stdout:
+                try:
+                    process.kill()
+                finally:
+                    process.wait(timeout=5)
+            raise
     session=bridge.Session(process,config['scratch'])
     bridge.install(session,root)
     import pytest
