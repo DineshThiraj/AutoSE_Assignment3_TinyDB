@@ -25,7 +25,10 @@ def test_static_job_graph_no_cycles_and_only_two_review_rounds():
             visit(need,active|{name})
         done.add(name)
     for name in jobs:visit(name,set())
-    assert len(done)==41
+    assert len(done)==62
+    assert sum(j.get('with',{}).get('phase')=='freeze-candidate' for j in jobs.values())==4
+    assert jobs['trial_claim']['with']['phase']=='claim'
+    assert jobs['trial_claim']['needs']==['admission']
     assert sum(j.get('with',{}).get('phase')=='review' for j in jobs.values())==2
     assert sum(j.get('with',{}).get('phase')=='implementation' for j in jobs.values())==4
     assert main['concurrency']['cancel-in-progress'] is False
@@ -34,8 +37,13 @@ def test_static_job_graph_no_cycles_and_only_two_review_rounds():
     for name,job in jobs.items():
         if name.endswith('_release'):
             assert "outputs.passed == 'true'" in job['if']
-        if 'secrets' in job:
+        if 'AUTOSE_MODEL_API_KEY' in job.get('secrets',{}):
             assert job['uses'].endswith('autose-broker.yml')
+            reservation=jobs[job['needs'][0]]
+            assert reservation['uses'].endswith('autose-ledger.yml')
+            assert reservation['with']['phase']=='reserve'
+            assert reservation['with']['target_phase']==job['with']['phase']
+            assert "outputs.ready == 'true'" in job['if']
         if name.startswith('r2'):
             assert 'r2_start' in jobs or name=='r2_start'
 
@@ -51,7 +59,12 @@ def test_workflow_mirrors_and_credential_boundaries():
         source=(REPO/'.github/workflows'/f'autose-{kind}.yml').read_text()
         if kind!='broker':assert 'MODEL_API_KEY' not in source
     broker=workflow('autose-broker.yml')
-    assert set(broker['on']['workflow_call']['secrets'])=={'AUTOSE_MODEL_API_KEY'}
+    assert set(broker['on']['workflow_call']['secrets'])=={'AUTOSE_MODEL_API_KEY','AUTOSE_CONSUMER_TOKEN'}
+    ledger=workflow('autose-ledger.yml')
+    assert ledger['jobs']['phase']['permissions']=={'contents':'write','actions':'read'}
+    assert 'secrets' not in ledger['on']['workflow_call']
+    assert 'MODEL_API_KEY' not in json.dumps(ledger)
+    assert 'docker' not in json.dumps(ledger)
     ci=workflow('autose-ci.yml')
     steps=ci['jobs']['tinydb-tests']['steps']
     assert steps[0]['with']['ref']=='${{ github.event.pull_request.base.sha }}'

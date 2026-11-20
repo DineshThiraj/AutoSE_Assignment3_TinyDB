@@ -24,11 +24,14 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+    - name: Install trusted verifier dependencies
+      run: python -m pip install --disable-pip-version-check pytest==9.2.0 PyYAML==6.0.3
     - name: Build trusted image
       run: docker build -t autose-pytest:trusted -f trusted/workflow/Dockerfile trusted/workflow
-    - name: Test exact PR head in isolated container
+    - name: Test exact PR head in isolated container and require independent verification
       env:
         PYTHONPATH: trusted/workflow
+        GITHUB_TOKEN: ${{ github.token }}
       run: python trusted/workflow/ci_exact.py
     - uses: actions/upload-artifact@v4
       if: always()

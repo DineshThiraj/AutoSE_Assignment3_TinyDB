@@ -96,64 +96,104 @@ class GitHub:
         return {'method':'effective_rules_plus_verified_admin_preflight','rules':rules,'setup_evidence':record['evidence'],
                 'limitation':'Bypass actors are not visible to this token; separately verified setup record expires within 24h.'}
 
+    def read_commit_source(self, head):
+        """Read immutable Git objects; never import code from the commit."""
+        import base64
+        commit=self.repo('GET','/git/commits/'+sha(head))
+        tree=self.repo('GET','/git/trees/'+sha(commit['tree']['sha'])+'?recursive=1')
+        require(tree.get('truncated') is False,'candidate tree truncated')
+        result={}
+        for item in tree['tree']:
+            path=item['path']
+            if not path.startswith(('tinydb/','tests/')) or not path.endswith('.py'):continue
+            require(item['mode']=='100644' and item['type']=='blob','candidate source not regular')
+            blob=self.repo('GET','/git/blobs/'+sha(item['sha']))
+            require(blob.get('encoding')=='base64','candidate blob encoding')
+            data=base64.b64decode(blob['content'])
+            require(len(data)<=150_000 and hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest()==item['sha'],'candidate blob identity mismatch')
+            result[path]=data.decode()
+        require(len(result)<=27 and sum(len(v.encode()) for v in result.values())<=800_000,'candidate source size')
+        return result,commit
+
+    def freeze_candidate(self,state):
+        """Create a detached source commit BEFORE verification; no branch or PR."""
+        from .common import passed
+        from .source import allowed,source_hash
+        passed(state,'implementation')
+        require(state['execution_kind']=='hosted','fixture cannot freeze remotely')
+        base=sha(state['base_sha'])
+        require(self.repo('GET','/git/ref/heads/main')['object']['sha']==base,'base changed before candidate freeze')
+        tree=self.repo('GET','/git/trees/'+base+'?recursive=1')
+        require(tree.get('truncated') is False,'base tree truncated')
+        entries={e['path']:e for e in tree['tree']}
+        def blob_sha(content):
+            raw=content.encode();return hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+        for path,content in state['baseline'].items():
+            e=entries.get(path,{})
+            require(e.get('sha')==blob_sha(content) and e.get('mode')=='100644' and e.get('type')=='blob','base TinyDB differs from pinned source')
+        edits=[]
+        for path,content in state['source'].items():
+            if content==state['baseline'].get(path):continue
+            allowed(path,'implementation' if path.startswith('tinydb/') else 'testing')
+            require(not path.startswith('tests/') or path not in state['baseline'],'original test changed')
+            blob=self.repo('POST','/git/blobs',{'content':content,'encoding':'utf-8'})
+            require(blob['sha']==blob_sha(content),'candidate blob identity mismatch')
+            edits.append({'path':path,'mode':'100644','type':'blob','sha':blob['sha']})
+        require(edits,'empty proposed change')
+        target_tree=self.repo('POST','/git/trees',{'base_tree':tree['sha'],'tree':edits})['sha']
+        parent=state.get('publication',{}).get('head_sha') or base
+        head=self.repo('POST','/git/commits',{'message':f"autose: issue {state['issue']['number']} (run {state['run_id']})\nIssue-SHA256: {state['issue_hash']}\nSource-SHA256: {source_hash(state['source'])}",
+            'tree':sha(target_tree),'parents':[sha(parent)]})['sha']
+        state['candidate_commit']={'head_sha':sha(head),'tree_sha':target_tree,'parent':parent,
+            'source_sha256':source_hash(state['source']),'issue_hash':state['issue_hash'],'run_id':state['run_id']}
+        self.verify_candidate(state)
+        return state['candidate_commit']
+
+    def verify_candidate(self,state):
+        from .source import source_hash
+        frozen=state.get('candidate_commit',{})
+        require(frozen.get('source_sha256')==source_hash(state['source']) and frozen.get('issue_hash')==state['issue_hash']
+                and frozen.get('run_id')==state['run_id'],'frozen candidate identity missing/mismatched')
+        actual,commit=self.read_commit_source(frozen['head_sha'])
+        require(actual==state['source'] and commit['tree']['sha']==frozen['tree_sha'],'frozen commit source mismatch')
+        require([p['sha'] for p in commit['parents']]==[frozen['parent']],'frozen commit parent mismatch')
+        expected_message=f"autose: issue {state['issue']['number']} (run {state['run_id']})\nIssue-SHA256: {state['issue_hash']}\nSource-SHA256: {source_hash(state['source'])}"
+        require(commit.get('message','').rstrip('\n')==expected_message,'frozen commit issue/run mismatch')
+        return frozen
+
     def publish(self, state):
         from .common import passed
-        passed(state, 'testing')
-        require(state['execution_kind'] == 'hosted', 'fixture execution cannot publish')
-        require(state['repository'] == REPOSITORY, 'state repository mismatch')
-        base_sha = sha(state['base_sha'])
-        current = self.repo('GET', '/git/ref/heads/main')['object']['sha']
-        require(current == base_sha, 'base changed; rerun admission/design/tests')
-        tree = self.repo('GET', '/git/trees/' + base_sha + '?recursive=1')
-        require(tree.get('truncated') is False, 'base tree truncated')
-        entries = {item['path']: item for item in tree['tree']}
-        # Never overwrite a source baseline different from the one that was tested.
-        def blob_sha(content):
-            raw = content.encode()
-            return hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
-        for path, content in state['baseline'].items():
-            require(entries.get(path, {}).get('sha') == blob_sha(content), 'base TinyDB differs from pinned source')
-            require(entries[path]['mode'] == '100644' and entries[path]['type'] == 'blob', 'base source is not regular file')
-        from .source import allowed, source_hash
-        require(source_hash(state['source']) == state['tested_source_hash'], 'tested source identity changed')
-        edits = []
-        for path, content in state['source'].items():
-            if state['baseline'].get(path) == content:
-                continue
-            allowed(path, 'implementation' if path.startswith('tinydb/') else 'testing')
-            blob = self.repo('POST', '/git/blobs', {'content':content, 'encoding':'utf-8'})
-            require(blob['sha'] == blob_sha(content), 'published blob mismatch')
-            edits.append({'path':path, 'mode':'100644', 'type':'blob', 'sha':blob['sha']})
-        require(edits, 'empty proposed change')
-        new_tree = self.repo('POST', '/git/trees', {'base_tree':tree['sha'], 'tree':edits})['sha']
-        branch = f"autose/issue-{state['issue']['number']}"
-        prs = self.issue_prs(state['issue']['number'])
-        require(len(prs) <= 1, 'multiple PRs for issue branch')
-        existing = None
-        try:
-            existing = self.repo('GET', '/git/ref/heads/' + branch)['object']['sha']
-        except APIError as error:
-            require(error.status == 404, 'branch lookup unavailable')
+        from .verification import require_authoritative
+        passed(state,'testing')
+        require(state['execution_kind']=='hosted','fixture execution cannot publish')
+        require_authoritative(state.get('execution',{}),digest(encoded(state['source'])))
+        require(state['repository']==REPOSITORY,'state repository mismatch')
+        frozen=self.verify_candidate(state)
+        head=frozen['head_sha'];new_tree=frozen['tree_sha']
+        require(state['execution']['identity'].get('head_sha')==head,'tested commit differs from publication')
+        require(state['execution']['identity'].get('binding',{}).get('issue_hash')==state['issue_hash'],'tested issue differs from publication')
+        require(state['execution']['identity'].get('binding',{}).get('issue_number')==state['issue']['number'] and
+                state['execution']['identity'].get('binding',{}).get('admitted_run_id')==state['run_id'] and
+                state['execution']['identity'].get('run_id')==state['run_id'],'tested run/issue differs from publication')
+        base=sha(state['base_sha'])
+        require(self.repo('GET','/git/ref/heads/main')['object']['sha']==base,'base changed; rerun admission/design/tests')
+        prs=self.issue_prs(state['issue']['number'])
+        require(len(prs)<=1,'multiple PRs for issue branch')
+        branch=f"autose/issue-{state['issue']['number']}"
+        existing=None
+        try:existing=self.repo('GET','/git/ref/heads/'+branch)['object']['sha']
+        except APIError as error:require(error.status==404,'branch lookup unavailable')
         if existing:
-            existing_commit = self.repo('GET', '/git/commits/' + sha(existing))
-            require(prs and prs[0]['state'] == 'open' and prs[0]['base']['ref'] == 'main', 'existing branch needs manual reconciliation')
-            require('<!-- autose-issue:' + str(state['issue']['number']) + ' -->' in (prs[0].get('body') or ''), 'unowned issue branch')
-            require(prs[0]['head']['sha'] == existing, 'branch/PR head mismatch')
-            expected = state.get('publication', {}).get('head_sha')
-            require(existing_commit['tree']['sha'] == new_tree or expected == existing, 'branch head changed outside this attempt')
-        parent = existing or base_sha
-        if existing and existing_commit['tree']['sha'] == new_tree:
-            head = existing
+            require(prs and prs[0]['state']=='open' and prs[0]['base']['ref']=='main','existing branch needs manual reconciliation')
+            require('<!-- autose-issue:'+str(state['issue']['number'])+' -->' in (prs[0].get('body') or ''),'unowned issue branch')
+            require(prs[0]['head']['sha']==existing,'branch/PR head mismatch')
+            require(existing in (head,frozen['parent']),'branch head changed outside tested attempt')
+            if existing!=head:
+                require(self.repo('GET','/git/ref/heads/'+branch)['object']['sha']==existing,'branch raced publication')
+                self.repo('PATCH','/git/refs/heads/'+branch,{'sha':head,'force':False})
         else:
-            commit = self.repo('POST', '/git/commits', {
-                'message':f"autose: issue {state['issue']['number']} (run {state['run_id']})",
-                'tree':new_tree, 'parents':[parent]})
-            head = sha(commit['sha'])
-            if existing:
-                require(self.repo('GET', '/git/ref/heads/' + branch)['object']['sha'] == existing, 'branch raced publication')
-                self.repo('PATCH', '/git/refs/heads/' + branch, {'sha':head,'force':False})
-            else:
-                self.repo('POST', '/git/refs', {'ref':'refs/heads/' + branch,'sha':head})
+            require(frozen['parent']==base,'candidate parent no longer matches branch')
+            self.repo('POST','/git/refs',{'ref':'refs/heads/'+branch,'sha':head})
         if not prs:
             marker = f"<!-- autose-issue:{state['issue']['number']} -->\n<!-- autose-event:{state['event_id']} -->"
             pr = self.repo('POST', '/pulls', {'title':f"Issue #{state['issue']['number']}: {state['issue']['title']}"[:240],

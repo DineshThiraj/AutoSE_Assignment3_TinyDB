@@ -7,6 +7,7 @@ import subprocess
 from autose.common import PIN, require
 from autose.executor import execute
 from autose.source import snapshot
+from autose.verification import require_authoritative
 
 
 def main():
@@ -32,10 +33,11 @@ def main():
         if path.startswith('tests/'):
             require(value == source[path], 'original test changed')
     baseline_ids=json.loads((trusted/'workflow/config/baseline-case-ids.json').read_text())
-    result=execute(source,'ci-output',phase='testing',baseline_ids=baseline_ids)
+    result=execute(source,'ci-output',phase='testing',baseline_ids=baseline_ids,head_sha=actual,
+        binding={'kind':'pull_request','pull_request':event['pull_request']['number'],'base_sha':event['pull_request']['base']['sha']})
     result['head_sha']=actual
     Path('ci-output/result.json').write_text(json.dumps(result,indent=2)+'\n')
-    require(result['passed'], 'exact-head full test gate failed')
+    require_authoritative(result)
 
 
 if __name__ == '__main__':

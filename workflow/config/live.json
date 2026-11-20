@@ -3,6 +3,8 @@
   "adapter": null,
   "model": null,
   "effort": null,
+  "service_tier": null,
+  "trial": null,
   "token_budget": null,
   "max_output_tokens": null,
   "provider_support_evidence": null,

@@ -12,11 +12,19 @@ from .broker import ResponsesBroker
 from .common import GateError, STAGES, artifact, digest, encoded, gate, json_load, load_artifact, readiness, require
 from .executor import execute
 from .github import GitHub
+from .trial import Ledger
 
 
 ROLE_PHASES = {'requirements','design','implementation','author-tests','review','review-final'}
 PHASE_STAGE = {'author-tests':'testing','compile':'implementation','tests':'testing',
                'review-tests':'review','review-final':'review','post-review':'review'}
+
+
+def skipped(state, phase):
+    return (phase == 'requirements' and state.get('route') != 'requirements') or (
+        phase == 'design' and state.get('route') not in {'requirements','design'}) or (
+        phase == 'implementation' and state.get('route') == 'testing' and state['attempt'] == 1) or (
+        phase == 'review-final' and not state.get('review_requested_tests'))
 
 
 def outputs(state):
@@ -35,6 +43,10 @@ def outputs(state):
 
 def render(state):
     result = {'gate.json':encoded({'gates':state.get('gates',{}),'fatal':state.get('fatal'), 'phase':state.get('phase')}) + '\n'}
+    if state.get('trial_claim'):
+        result['trial_budget.json'] = encoded({'claim_sha':state['trial_claim'],'latest_grant':state.get('trial_grant'),
+            'observed_usage':state.get('usage'), 'responses':state.get('calls',[]),
+            'note':'Reservations are burned; missing response evidence is unknown spend, never zero or refundable.'})+'\n'
     if 'spec' in state:
         from .contracts import DOC_HEADINGS
         docs = state['spec'].get('documents', {})
@@ -66,12 +78,13 @@ def render(state):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('phase', choices=['admission','requirements','design','implementation','compile','author-tests',
+    parser.add_argument('phase', choices=['admission','claim','reserve','freeze-candidate','requirements','design','implementation','compile','author-tests',
                         'tests','release','review','review-tests','review-final','post-review','repair','select','final'])
     parser.add_argument('--input', default='input')
     parser.add_argument('--output', default='output')
     parser.add_argument('--repo', default='.')
     parser.add_argument('--work', default='execution')
+    parser.add_argument('--target-phase', choices=sorted(ROLE_PHASES))
     args = parser.parse_args(argv)
     repo = Path(args.repo).resolve()
     state = None
@@ -97,12 +110,21 @@ def main(argv=None):
             state = load_artifact(input_path)
             require(not state.get('fatal'), 'previous stage failed')
             broker = None
-            skip = (args.phase == 'requirements' and state.get('route') != 'requirements') or (
-                args.phase == 'design' and state.get('route') not in {'requirements','design'}) or (
-                args.phase == 'implementation' and state.get('route') == 'testing' and state['attempt'] == 1) or (
-                args.phase == 'review-final' and not state.get('review_requested_tests'))
+            skip = skipped(state,args.phase)
+            if args.phase == 'claim':
+                config = json_load(repo/'workflow/config/live.json')
+                from .broker import live_preflight
+                live_preflight(config,require_key=False)
+                Ledger(GitHub()).claim(state,config)
+            elif args.phase == 'reserve':
+                require(args.target_phase in ROLE_PHASES, 'reservation target phase required')
+                config = json_load(repo/'workflow/config/live.json')
+                from .broker import live_preflight
+                live_preflight(config,require_key=False)
+                if not skipped(state,args.target_phase):
+                    Ledger(GitHub()).reserve(state,config,args.target_phase,job_id=os.environ.get('TARGET_JOB'))
             if args.phase in ROLE_PHASES and not skip:
-                broker = ResponsesBroker(json_load(repo/'workflow/config/live.json'))
+                broker = ResponsesBroker(json_load(repo/'workflow/config/live.json'),phase=args.phase)
             if args.phase == 'requirements' and not skip:
                 engine.requirements(state, broker, repo)
             elif args.phase == 'design' and not skip:
@@ -114,14 +136,19 @@ def main(argv=None):
             elif args.phase == 'author-tests':
                 engine.author_tests(state, broker, repo)
             elif args.phase == 'tests':
+                GitHub().verify_candidate(state)
                 engine.test_stage(state, args.work,baseline_ids=json_load(repo/'workflow/config/baseline-case-ids.json'))
+            elif args.phase == 'freeze-candidate':
+                engine.freeze_candidate(state,GitHub())
             elif args.phase == 'release':
                 engine.release(state, GitHub())
             elif args.phase == 'review':
                 engine.independent_review(state, broker, repo)
             elif args.phase == 'review-tests' and state.get('review_requested_tests'):
                 result = execute(state['source'],args.work,phase='testing',
-                    baseline_ids=json_load(repo/'workflow/config/baseline-case-ids.json'),test_map=state['test_map'],timeout=min(300,engine.remaining(state)))
+                    baseline_ids=json_load(repo/'workflow/config/baseline-case-ids.json'),test_map=state['test_map'],timeout=min(300,engine.remaining(state)),
+                    head_sha=state['publication']['head_sha'],binding={'kind':'issue','issue_number':state['issue']['number'],
+                        'issue_hash':state['issue_hash'],'admitted_run_id':state['run_id'],'base_sha':state['base_sha']})
                 state['own_review_execution'] = result
             elif args.phase == 'review-final' and not skip:
                 engine.independent_review(state,broker,repo,own_test_result=state['own_review_execution'])

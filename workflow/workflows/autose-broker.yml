@@ -30,6 +30,8 @@ name: AutoSE broker phase
     secrets:
       AUTOSE_MODEL_API_KEY:
         required: false
+      AUTOSE_CONSUMER_TOKEN:
+        required: false
 permissions: {}
 jobs:
   phase:
@@ -74,6 +76,9 @@ jobs:
         PYTHONPATH: workflow
         PHASE: ${{ inputs.phase }}
         AUTOSE_MODEL_API_KEY: ${{ secrets.AUTOSE_MODEL_API_KEY }}
+        AUTOSE_CONSUMER_TOKEN: ${{ secrets.AUTOSE_CONSUMER_TOKEN }}
+        AUTOSE_JOB_ID: ${{ inputs.prefix }}
+        GITHUB_TOKEN: ${{ github.token }}
       run: python -m autose.cli "$PHASE" --input input --output out
     - uses: actions/upload-artifact@v4
       if: always()

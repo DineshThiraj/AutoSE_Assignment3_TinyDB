@@ -1,0 +1,5 @@
+{
+  "enabled": false,
+  "backend": "isolated-rpc-v1",
+  "image_digest": null
+}

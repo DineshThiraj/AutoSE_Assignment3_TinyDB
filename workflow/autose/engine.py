@@ -11,6 +11,8 @@ from .common import PIN, REPOSITORY, SECRET_PATTERN, STAGES, digest, encoded, ga
 from .github import APIError
 from .executor import execute
 from .source import diff, replacements, snapshot, source_hash, tests_cover
+from .trial import event_guard, issue_scope_hash
+import os
 
 
 def remaining(state):
@@ -20,6 +22,10 @@ def remaining(state):
 
 
 def admit(event, event_name, github, repository, *, run_id, run_attempt, config, fixture=False):
+    require(not fixture or os.environ.get('GITHUB_ACTIONS') != 'true', 'fixture admission forbidden on hosted runner')
+    if not fixture:
+        live_preflight(config, require_key=False)
+        event_guard(config,event,event_name,run_attempt)
     info = github.verify_repository()
     require(event.get('repository', {}).get('full_name') == REPOSITORY, 'wrong event repository')
     issue = event.get('issue') or {}
@@ -54,25 +60,26 @@ def admit(event, event_name, github, repository, *, run_id, run_attempt, config,
     require(current_issue['state'] == 'open' and 'pull_request' not in current_issue, 'issue not open')
     issue_data = {k:current_issue.get(k) or '' for k in ('number','title','body','html_url','updated_at')}
     require(isinstance(issue_data['body'], str) and 0 < len(issue_data['body'].encode()) < 40_000, 'empty/oversized issue')
-    require(not SECRET_PATTERN.search(issue_data['body']), 'credential-like issue material; stop before provider input')
+    require(not SECRET_PATTERN.search(encoded(issue_data)), 'credential-like issue material; stop before provider input')
     require(str(run_id).isdigit() and int(run_attempt) > 0, 'invalid run identity')
     # A stable branch is the durable issue-to-PR index. Reconcile completed/replayed
     # events before model calls; unfamiliar existing work stops instead of duplicating.
     prs = github.issue_prs(issue['number'])
     require(not prs, 'existing issue PR: reconcile/resume saved attempt; no duplicate model run')
     if not fixture:
-        live_preflight(config, require_key=False)
+        require(issue_scope_hash(issue_data) == config['trial']['issue_hash'], 'approved issue changed')
     source = snapshot(repository)
     state = {
         'repository':REPOSITORY,'pin':PIN,'base_sha':sha(branch['commit']['sha']),
         'run_id':str(run_id),'run_attempt':int(run_attempt),'event_id':str(run_id),
+        'trigger':{'kind':event_name,'actor':actor['login'],'comment_id':event.get('comment',{}).get('id')},
         'attempt_id':f'{run_id}-{run_attempt}','started_at':time.time(),
         'execution_kind':'local_fixture' if fixture else 'hosted',
         'issue':issue_data,'issue_hash':digest(encoded(issue_data)),
         'authorization':{'actor':actor['login'],'permission':permission['permission'],
             'scope':'Only the exact explicit frozen issue scope; inferred requirements are not approved.'},
         'protection_verification':protection,
-        'limits':{'calls':24,'tokens':config.get('token_budget') or 200_000,'seconds':2400},
+        'limits':{'calls':config.get('trial',{}).get('max_calls',24),'tokens':config.get('token_budget') or 200_000,'seconds':2400},
         'usage':{'calls':0,'tokens':0,'unknown':False},'baseline':source,'source':copy.deepcopy(source),
         'round':1,'attempt':1,'route':'requirements','events':[],'gates':{},
     }
@@ -132,6 +139,11 @@ def author_tests(state, broker, repo):
     result = ask(broker, state, 'testing', repo)
     source = replacements(state['source'], result.get('files'), 'testing', baseline=state['baseline'])
     tests_cover(source, state['baseline'], result.get('test_map'), [c['id'] for c in state['spec']['criteria']])
+    from .authority_dsl import check
+    for path,content in source.items():
+        if path.startswith('tests/') and path not in state['baseline']:
+            try:check(content)
+            except (SyntaxError,RuntimeError):require(False,'generated tests must use the independent verifier subset')
     state['source'], state['test_map'] = source, result['test_map']
     state['patch'] = diff(state['baseline'], source)
 
@@ -140,17 +152,31 @@ def test_stage(state, directory, *, baseline_ids, **execution_options):
     passed(state, 'implementation')
     tests_cover(state['source'], state['baseline'], state['test_map'], [c['id'] for c in state['spec']['criteria']])
     execution_options['timeout'] = min(execution_options.get('timeout',300),remaining(state),300)
+    if state['execution_kind']=='hosted':
+        frozen=state.get('candidate_commit',{})
+        require(frozen.get('source_sha256')==source_hash(state['source']),'candidate must be frozen before authoritative testing')
+        execution_options['head_sha']=frozen['head_sha']
+        execution_options['binding']={'kind':'issue','issue_number':state['issue']['number'],
+            'issue_hash':state['issue_hash'],'admitted_run_id':state['run_id'],'base_sha':state['base_sha']}
     result = execute(state['source'], directory, phase='testing', baseline_ids=baseline_ids,
                      test_map=state['test_map'], **execution_options)
     state['execution'] = result
     state['tested_source_hash'] = source_hash(state['source'])
     gate(state, 'testing', 'passed' if result['passed'] else 'failed',
-         'Fixed full original/new pytest execution and JUnit collection validation.',
+         'Candidate pytest is diagnostic; independent verified baseline/generated verdict required.',
          source_hash=state['tested_source_hash'], case_count=result.get('case_count'))
+
+
+def freeze_candidate(state,github):
+    passed(state,'implementation');remaining(state)
+    tests_cover(state['source'],state['baseline'],state['test_map'],[c['id'] for c in state['spec']['criteria']])
+    return github.freeze_candidate(state)
 
 
 def release(state, github):
     passed(state, 'testing')
+    from .verification import require_authoritative
+    require_authoritative(state.get('execution',{}),source_hash(state['source']))
     remaining(state)
     github.publish(state)
     wait_seconds = min(300, max(0, state['limits']['seconds'] - (time.time() - state['started_at'])))

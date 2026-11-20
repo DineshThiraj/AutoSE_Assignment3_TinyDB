@@ -10,7 +10,7 @@ from autose.broker import context, live_preflight
 from autose.common import GateError, STAGES, artifact, budget, gate, invalidate, load_artifact, readiness
 from autose.executor import execute, junit
 from autose.source import allowed, replacements, source_hash, tests_cover as check_test_coverage
-from conftest import FixtureBroker, FixturePublisher, REPO, PYTHON, TESTS, plan, specification
+from conftest import FixtureBroker, FixturePublisher, FixtureVerifier, REPO, PYTHON, TESTS, plan, specification
 
 
 def run_attempt(state,broker,tmp_path,baseline_ids):
@@ -19,7 +19,7 @@ def run_attempt(state,broker,tmp_path,baseline_ids):
     engine.compile_stage(state,tmp_path/(prefix+'-build'),local_fixture=True,python=PYTHON)
     assert state['gates']['implementation']['status']=='passed'
     engine.author_tests(state,broker,REPO)
-    engine.test_stage(state,tmp_path/(prefix+'-test'),baseline_ids=baseline_ids,local_fixture=True,python=PYTHON)
+    engine.test_stage(state,tmp_path/(prefix+'-test'),baseline_ids=baseline_ids,local_fixture=True,python=PYTHON,verifier=FixtureVerifier())
 
 
 def test_actual_tinydb_retry_and_six_stage_contract(state,tmp_path,baseline_ids):

@@ -2,7 +2,14 @@ You are the implementation/test-author role at stage 4. Return one JSON object.
 Write meaningful asserted regression tests for EACH acceptance criterion using
 the actual TinyDB API, memory and JSON storage where applicable. Keep all original
 tests unchanged. Add only tests/test_autose_*.py files. Do not weaken, skip or xfail
-tests or claim commands ran. Do not modify TinyDB in this stage. Return complete
-files and a per-criterion mapping to a top-level asserted test function:
+tests or claim commands ran. Do not modify TinyDB in this stage.
+Tests are interpreted by a trusted verifier. Import only Query, where and TinyDB
+from tinydb, or MemoryStorage/JSONStorage from tinydb.storages as needed; every
+test must be a top-level `def test_name(db):` with no annotations/decorators/defaults.
+Use assignments, API calls, literal data, comparisons, assertions and simple list
+comprehensions. No top-level execution, filesystem/OS access, dynamic imports,
+reflection/private attributes, lambdas, classes, loops, context managers or helpers.
+Use the provided db fixture; it runs each test with memory and JSON storage.
+Return complete files and a per-criterion mapping to a top-level asserted test function:
 {"files":{"tests/test_autose_change.py":"..."},
 "test_map":{"AC-001":"tests/test_autose_change.py::test_behavior"}}.

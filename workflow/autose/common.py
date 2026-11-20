@@ -133,10 +133,11 @@ def readiness(state):
         "unresolved_findings": state.get('review',{}).get('findings',[]),
         "secret_pattern_scan": 'passed' if state.get('source') and not SECRET_PATTERN.search(encoded(state['source'])) else 'unknown/failed',
         "ci": state.get("publication", {}).get("ci", "unknown"),
+        "independent_test_verification": state.get('execution',{}).get('authoritative',False),
         "review_verdict": state.get("review", {}).get("verdict", "unknown"),
         "rounds": state.get("round", 0),
         "hidden_tests": "unknown; separate private evaluation required",
         "human_decision": "pending",
-        "automated_gates_satisfied": state['execution_kind'] == 'hosted' and all(gates.get(s, {}).get("status") == "passed" for s in STAGES) and approved,
+        "automated_gates_satisfied": state['execution_kind'] == 'hosted' and state.get('execution',{}).get('authoritative') is True and all(gates.get(s, {}).get("status") == "passed" for s in STAGES) and approved,
         "merge_authorized": False,
     }

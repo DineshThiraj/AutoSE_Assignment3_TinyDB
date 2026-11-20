@@ -1,0 +1,91 @@
+name: AutoSE ledger phase
+'on':
+  workflow_call:
+    inputs:
+      phase:
+        required: true
+        type: string
+      prefix:
+        required: true
+        type: string
+      prior:
+        required: true
+        type: string
+      base_sha:
+        required: true
+        type: string
+      target_phase:
+        required: false
+        type: string
+        default: requirements
+      target_job:
+        required: false
+        type: string
+        default: ''
+    outputs:
+      ready:
+        value: ${{ jobs.phase.outputs.ready }}
+      passed:
+        value: ${{ jobs.phase.outputs.passed }}
+      retry:
+        value: ${{ jobs.phase.outputs.retry }}
+      repair:
+        value: ${{ jobs.phase.outputs.repair }}
+      want_tests:
+        value: ${{ jobs.phase.outputs.want_tests }}
+      base_sha:
+        value: ${{ jobs.phase.outputs.base_sha }}
+permissions: {}
+jobs:
+  phase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      ready: ${{ steps.run.outputs.ready }}
+      passed: ${{ steps.run.outputs.passed }}
+      retry: ${{ steps.run.outputs.retry }}
+      repair: ${{ steps.run.outputs.repair }}
+      want_tests: ${{ steps.run.outputs.want_tests }}
+      base_sha: ${{ steps.run.outputs.base_sha }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.base_sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - uses: actions/github-script@v7
+      id: artifacts
+      env:
+        PRIOR: ${{ inputs.prior }}
+        MULTIPLE: 'false'
+        PHASE: ${{ inputs.phase }}
+      with:
+        script: 'await require(''./workflow/artifact_input.js'')({github, context, core, pattern: process.env.PRIOR, multiple:
+          process.env.MULTIPLE === ''true'' && process.env.PHASE !== ''repair''});'
+    - uses: actions/download-artifact@v4
+      with:
+        artifact-ids: ${{ steps.artifacts.outputs.ids }}
+        path: input
+        merge-multiple: true
+    - name: Execute trusted phase
+      id: run
+      env:
+        PYTHONPATH: workflow
+        PHASE: ${{ inputs.phase }}
+        GITHUB_TOKEN: ${{ github.token }}
+        TARGET_PHASE: ${{ inputs.target_phase }}
+        TARGET_JOB: ${{ inputs.target_job }}
+      run: python -m autose.cli "$PHASE" --input input --output out --target-phase "$TARGET_PHASE"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: ${{ inputs.prefix }}-attempt-${{ github.run_attempt }}
+        path: out/
+        if-no-files-found: error
+        retention-days: 90

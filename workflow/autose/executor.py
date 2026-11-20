@@ -8,10 +8,11 @@ import signal
 import subprocess
 import sys
 import time
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .common import GateError, digest, require
+from .common import GateError, REPOSITORY, digest, encoded, require
 from .source import materialize
 
 COMPILE = """from pathlib import Path
@@ -63,7 +64,7 @@ def junit(path):
 
 
 def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_fixture=False,
-            python=sys.executable, timeout=300, image='autose-pytest:trusted'):
+            python=sys.executable, timeout=300, image='autose-pytest:trusted', verifier=None, head_sha=None,binding=None):
     require(phase in {'compile', 'testing'}, "execution phase")
     root = Path(directory).resolve()
     require(not root.exists(), "execution directory exists")
@@ -72,6 +73,15 @@ def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_f
     materialize(source, target)
     output.mkdir()
     require(0 < timeout <= 300, "invalid execution timeout")
+    execution_identity={'execution_id':uuid.uuid4().hex,'repository':REPOSITORY,
+        'source_sha256':digest(encoded(source)), 'head_sha':head_sha,
+        'binding':binding,
+        'run_id':os.environ.get('GITHUB_RUN_ID','local-fixture'),
+        'run_attempt':os.environ.get('GITHUB_RUN_ATTEMPT','local-fixture'),
+        'job_id':os.environ.get('AUTOSE_JOB_ID',os.environ.get('GITHUB_JOB','local-fixture'))}
+    if phase=='testing':
+        from .verification import environment_spec
+        execution_identity['expected_environment']=environment_spec()
     env = {'PATH': os.defpath, 'PYTHONDONTWRITEBYTECODE': '1', 'PYTEST_DISABLE_PLUGIN_AUTOLOAD': '1', 'LANG': 'C.UTF-8'}
     command = COMPILE if phase == 'compile' else PYTEST
     if local_fixture:
@@ -97,6 +107,7 @@ def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_f
     if not local_fixture:
         result['image_id'] = image_id
     result['isolation'] = 'local_fixture_unsandboxed' if local_fixture else 'docker_no_network_no_secrets'
+    result['identity']=execution_identity
     result['passed'] = result['returncode'] == 0 and not result['timed_out']
     xml_path = output / 'junit.xml'
     if phase == 'testing' and xml_path.is_file() and not xml_path.is_symlink() and xml_path.stat().st_size < 2_000_000:
@@ -115,4 +126,30 @@ def execute(source, directory, *, phase, baseline_ids=(), test_map=None, local_f
             result['new_cases'] = len(ids) - len(baseline_ids)
         except (GateError, ET.ParseError) as error:
             result.update(passed=False, validation_error=str(error))
+    if phase == 'testing':
+        # Host-controlled receipt is outside /out. Exit/report success is necessary
+        # diagnostic evidence, never proof that candidate assertions were executed.
+        result['diagnostic_passed']=result['passed']
+        result['passed']=False
+        result['authoritative']=False
+        receipt={k:result[k] for k in ('returncode','timed_out','seconds','identity','isolation')}
+        (root/'controller-receipt.json').write_text(encoded(receipt)+'\n')
+        baseline_files={c[0].replace('.','/')+'.py' for c in baseline_ids}
+        plan={'identity':execution_identity,'controller_receipt':receipt,'source':source,
+              'baseline_case_ids':list(baseline_ids),'test_map':test_map or {},
+              'generated_files':sorted(p for p in source if p.startswith('tests/test_') and p not in baseline_files)}
+        (root/'verification-request.json').write_text(encoded(plan)+'\n')
+        if result['diagnostic_passed']:
+            try:
+                from .verification import configured_authority
+                checked=(verifier or configured_authority(root/'independent')).verify(plan)
+                require(checked.get('verified') is True,'independent verification missing')
+                # The trusted supervisor executes tests and verifies their identity.
+                # A dependency-injected verifier is for coordinator tests only.
+                result['verification']=checked
+                ids=checked['case_ids']
+                result.update(passed=True,authoritative=True,case_ids=ids,case_count=len(ids),
+                    baseline_cases=len(baseline_ids),new_cases=len(ids)-len(baseline_ids))
+            except GateError as error:
+                result['verification_error']=str(error)
     return result

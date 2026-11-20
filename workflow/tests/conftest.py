@@ -108,6 +108,26 @@ class FixturePublisher:
     def post_review(self,state):return {'url':'fixture://not-a-github-review/1','event':'APPROVE','github_approved':True}
 
 
+class FixtureVerifier:
+    """Dependency double for the existing, known public TESTS fixture only.
+
+    Not a production authority and never evidence of independent execution. Real
+    fixtures still run pytest; signed protocol verification has separate tests.
+    """
+    def verify(self,plan):
+        from autose.common import require
+        require(plan['generated_files']==['tests/test_autose_remove.py'] and
+                plan['source']['tests/test_autose_remove.py']==TESTS,'unknown coordinator fixture')
+        ids=[tuple(c) for c in plan['baseline_case_ids']]
+        ids += [('tests.test_autose_remove',name+'['+storage+']')
+                for name in ('test_repeated_ids','test_preserve_tables_and_cache') for storage in ('memory','json')]
+        plan['identity']['expected_environment']['image_digest']='sha256:'+'f'*64
+        return {'verified':True,'case_ids':ids,'record':{'fixture_only':True,'identity':plan['identity'],
+                'completed':True,'verdict':'passed','expires_at':time.time()+300,
+                'schema':'autose-isolated-authority-v2',
+                'environment':{**plan['identity']['expected_environment'],'isolation':'docker_candidate_private_namespace'}}}
+
+
 @pytest.fixture
 def baseline_ids():
     return json.loads((REPO/'workflow/config/baseline-case-ids.json').read_text())
