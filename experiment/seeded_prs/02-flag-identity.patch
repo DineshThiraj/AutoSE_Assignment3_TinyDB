@@ -1,0 +1,11 @@
+--- a/tinydb/queries.py
++++ b/tinydb/queries.py
+@@ -357,7 +357,7 @@
+
+         # Include flags in the hash so queries that differ only by flags do not
+         # share a Table query-cache entry (see issue #637).
+-        return self._generate_test(test, ('matches', self._path, regex, flags))
++        return self._generate_test(test, ('matches', self._path, regex))
+
+     def search(self, regex: str, flags: int = 0) -> QueryInstance:
+         """

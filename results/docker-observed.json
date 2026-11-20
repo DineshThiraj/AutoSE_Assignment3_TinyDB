@@ -1,0 +1,37 @@
+{
+  "scope": "redacted projection of recorded local Docker evidence",
+  "run_id": "20261118T084516Z-f72127939f264190bdc6427142bf4d08",
+  "head_sha": "f6c727df6eaa708046e5258321e3f9865ad3d914",
+  "pin": "edff96aeb2616402e9489d46e90a592c05565621",
+  "status": "LOCAL_DOCKER_CHECKS_PASSED",
+  "docker_version": "29.1.3",
+  "image_id": "sha256:529a204bcd4360b66a1a8181ea4b8dee351e9dd35aca2949418f19d60306c8f1",
+  "cases": {
+    "positive": {
+      "status": "PASS",
+      "baseline_cases": 228,
+      "generated_cases": 4,
+      "observed_containers": 2
+    },
+    "unfixed_defect": {
+      "status": "EXPECTED_REJECTION",
+      "baseline_cases": 228,
+      "generated_failures": 4,
+      "observed_containers": 2
+    },
+    "forged_verdict": {
+      "status": "EXPECTED_REJECTION",
+      "trusted_protocol_failure": true,
+      "observed_containers": 1
+    }
+  },
+  "observed_containers": 5,
+  "hosted_verification": false,
+  "production_authorized": false,
+  "provenance": {
+    "RESULT.json": "df8af2c16c73d826754c8ac03d2d1c12763f48967b2141dce65d85b1625f5169",
+    "forged_verdict/summary.json": "29df5a8224f950400e916fb1c00846263ff689510c2c3a8376597cc3d8adbfc1",
+    "positive/summary.json": "7dd91eac5c25410d162e94719b5fd3437cf2b5de218622f7d2e6cd6e67f82558",
+    "unfixed_defect/summary.json": "e145ff83848ee91f13dbf12bc0cac842c8291b46cb418880010c044223b4b898"
+  }
+}

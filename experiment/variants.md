@@ -1,11 +1,23 @@
-# Candidate decision experiments — not frozen, no trials run
+# Two retrospective decision experiments
 
-Two ADR topics must be experimentally tested. Recommended candidates are D3 handoff detail and D8 reviewer prompt. These are proposals for student reasoning, not accepted decisions or pre-registered completed experiments.
+These are recorded local architectural comparisons. Historical prompt- and handoff-variant proposals were not executed. No paid calls or hosted treatment runs are counted.
 
-E1/D3: compare full validated spec/design artifacts with a structured summary containing the same IDs, file/function list and explicit constraints. Change only handoff representation to implementation. Hold task, model/effort, source tree, tool policy, test oracle, attempt limits and evaluation constant. Every run still uses the actual A1 skill and A2 architecture in its mandated stages; neither variant may omit required stages.
+## E1 · D7 testing authority
 
-E2/D8: compare minimal independent review instruction with evidence/category checklist instruction; both see only issue/diff/latest source and retain read/run, no push rights. Same five seeded PR heads and hidden ground truth, same model/effort, context budget and tool permissions. Require file/line evidence in both, and measure true detections, false positives and misses. Fresh context each review; never reveal seeded labels.
+| Variant | Procedure | Observed outcome |
+| --- | --- | --- |
+| A · Candidate report as authority | Historical controlled local fixture against the old validator. A candidate-controlled success report was presented without completed assertions. | Old testing gate accepted once. It reported 229 cases, with zero assertions executed. |
+| B · Independent supervisor | Recorded real local Docker harness at `f6c727d`. Supervisor checks isolated baseline and generated execution, coverage, completion, and typed result protocol. | Positive accepted (228+4). Unfixed defect and forged-verdict negative cases both rejected. Five actual container observations. |
 
-Provisional sample: E1 all five tasks paired across both conditions (10 trials); E2 all five seeded PRs paired across both prompts (10 review trials). These counts are a proposed design, not course minimums or approved spend. Start with one authorized nonexperimental vertical slice, fix observed infrastructure defects, then freeze variants, seed/order, exact provider/model/config, task/AC hashes, baseline tree, budget and protocol before scored runs. Extra replicates depend on approved cap; do not imply five paired tasks support broad causal claims.
+The old result is documented in the archived model-assisted security review. B uses a distinct forged-result mechanism, so this is a before/after comparison of the authority boundary with controls, not an identical-input benchmark or a detection rate. The authorized result moved outside the candidate process and kept candidate JUnit diagnostic. See [ADR-011](../architecture/decisions/ADR-011.md), the [remediation summary](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/blob/f6c727df6eaa708046e5258321e3f9865ad3d914/results/PR8_REMEDIATION.md), and the [Docker summary](../results/docker-observed.json).
 
-Freeze acceptance criteria before runs; 2–4 private tests each outside repository. Tests and seed labels stay off agents' filesystems. Account for test determinism and shared model error. Never rerun valid unsuccessful attempts to improve averages. Preserve infrastructure failures separately with explicit reasons and original evidence. Report unavailable usage as null, never estimated zero. Compute stage conditional pass rates (passed/attempted), overall stage completion (passed/all admitted), hidden pass counts with collection validity, reviewer confusion counts, elapsed time, reported input/output/cached tokens and available actual cost. Keep denied/invalid admissions distinguishable from model engineering failure. Discuss ceiling effects and prompt/task leakage.
+## E2 · D9 spending enforcement
+
+| Variant | Procedure | Observed outcome |
+| --- | --- | --- |
+| A · Read-only grant validation | Historical local protocol test ran three concurrent copies with the same one-call grant and a provider double. | 3/3 concurrent copies reached the fake provider. |
+| B · Atomic per-call consumption | Repeated the three-copy, one-slot concurrency test against the reference consumption service with an atomic mocked ref backend. | 1/3 reached the fake provider. 2/3 stopped. |
+
+The controller now consumes and verifies a bound receipt before provider HTTP, and burns uncertain reservations. This is a local mock concurrency comparison. GitHub ref atomicity, hosted service entitlement, model cost and latency were not measured. See [ADR-012](../architecture/decisions/ADR-012.md) and [observed remediation results](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/blob/f6c727df6eaa708046e5258321e3f9865ad3d914/results/PR8_REMEDIATION.md).
+
+Run B’s controlled local regressions with `PYTHONPATH=.:workflow python -m pytest -c /dev/null -o addopts= -p no:cacheprovider -q workflow/tests/test_consumption.py workflow/tests/test_authority_backend.py`. This repeats controller checks, not the archived host Docker run or private evaluation.

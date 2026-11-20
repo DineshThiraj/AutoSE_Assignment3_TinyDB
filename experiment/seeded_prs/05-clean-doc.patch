@@ -1,0 +1,11 @@
+--- a/tinydb/middlewares.py
++++ b/tinydb/middlewares.py
+@@ -119,7 +119,7 @@
+
+     def flush(self):
+         """
+-        Flush all unwritten data to disk.
++        Write all pending cached data to the underlying storage.
+         """
+         if self._closed:
+             raise ValueError('I/O operation on closed storage')

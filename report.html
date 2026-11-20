@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Architecting an Agentic SDLC Workflow — Assignment 3</title>
+<style>
+@page {size:A4;margin:15mm 16mm 14mm}
+*{box-sizing:border-box}
+body{margin:0;color:#172433;font:10.8pt/1.39 "DejaVu Sans",sans-serif;background:white}
+.sheet{height:266mm;position:relative;break-after:page}
+.sheet:last-child{break-after:auto}
+header{padding:0 0 2.8mm;border-bottom:1px solid #b8c6cd;color:#385867;font-size:9pt;margin-bottom:5mm}
+h1,h2,h3{color:#123345;line-height:1.14}
+h1{font-size:29pt;margin:0 0 3mm;letter-spacing:-.4pt}
+h2{font-size:22pt;margin:0 0 4mm}
+h3{font-size:13pt;margin:4mm 0 1.4mm}
+p{margin:0 0 3mm}
+ul,ol{margin:1.3mm 0 3mm;padding-left:5.5mm}
+li{margin:0 0 1.5mm}
+a{color:#005c76;text-decoration:underline;text-underline-offset:2px}
+code{font:9pt "DejaVu Sans Mono",monospace;overflow-wrap:anywhere}
+.small{font-size:9.2pt;color:#3b5665}
+.kicker{font-size:9pt;color:#006276;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:2mm}
+.sub{font-size:14pt;font-weight:bold;color:#1b5466;margin-bottom:3mm}
+.callout{padding:3mm 4mm;margin:3mm 0 4mm;background:#eff6f7;border-left:2mm solid #147084}
+table{width:100%;border-collapse:collapse;margin:2.7mm 0 3.5mm;font-size:9.4pt;line-height:1.33;table-layout:fixed}
+th,td{padding:2.2mm 2.5mm;vertical-align:top;overflow-wrap:anywhere}
+th{background:#183e50;color:#fff;text-align:left}
+td{border-bottom:1px solid #cbd6de}
+tr:nth-child(2n) td{background:#f0f5f7}
+.tight td,.tight th{padding:1.8mm 2.3mm}
+.figure{border:1px solid #bdcbd2;padding:3.2mm;margin:3mm 0 4mm}
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:2.8mm;margin:2mm 0}
+.lanes div{padding:2mm 2.8mm;background:#eff5f6;border-left:1.2mm solid #147084;font-size:9.4pt}
+.lanes b{display:block;color:#123345}
+.arrowline{background:#153e50;color:white;padding:2.3mm 3mm;font-size:9.25pt;margin:1mm 0}
+.footer{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;border-top:1px solid #b8c6cd;padding-top:2mm;font-size:8.4pt;color:#385867}
+@media screen {body{max-width:178mm;margin:12mm auto} .sheet{margin-bottom:12mm}}
+@media print {*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<section class="sheet">
+<header>Autonomous Software Engineering · Assignment 3</header>
+<p class="kicker">2025811002 · 20 November 2026</p>
+<h1>Architecting an Agentic SDLC Workflow</h1>
+<p class="sub">Issue In, Pull Request Out · TinyDB</p>
+<p><a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB">Assignment fork</a> · original pin <code>edff96aeb2616402e9489d46e90a592c05565621</code></p>
+<div class="callout"><b>Submission status.</b> Six gated stages are implemented. Local compile/test evaluation and real host Docker verification are recorded. Hosted issue automation stopped after admission, and the protected verifier and check issuer lack a verified deployment.</div>
+<h3>1 · Architecture — component view</h3>
+<div class="figure" role="img" aria-label="Component diagram: issue admission drives deterministic controller, with roles, executor, publisher and human reviewer gate">
+<div class="arrowline"><b>Issue event → admission → deterministic stage controller → artifacts → human decision</b></div>
+<div class="lanes">
+<div><b>Controller and durable state</b>Enforces transitions, budgets, attempt IDs, issue identity and hashed checkpoint lineage.</div>
+<div><b>Model broker · provider access</b>Separate Requirements, Design, Implementation/testing and Reviewer contexts. The broker sees the model key.</div>
+<div><b>Trusted executor · read access</b>Compile and diagnostic testing in isolated Docker. The supervisor owns reports and test completion.</div>
+<div><b>Candidate worker · narrow interface</b>Runs source with no network or secrets. Typed operations cross to the trusted test supervisor.</div>
+<div><b>Publisher · fork-scoped writes</b>Freezes candidate Git objects, publishes the exact tested commit and posts review. No merge operation.</div>
+<div><b>Protected verifier / proposed issuer</b>Reads exact head and base. A separate dedicated App is intended to issue the required head check.</div>
+</div>
+<div class="arrowline">Reviewer → bounded read and test request → publisher posts verdict → human decides</div>
+</div>
+<p>The broker receives bounded role-specific context. A1 drives testable requirements and clarification. A2 supplies architecture constraints and the design format. Local role outputs are serialized for checking before any later step receives them.</p>
+<p class="small">The design is recorded at <a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/commit/67c9b3c4286f598d5d415fb60433870cf63035a8">67c9b3c</a>, directly after the pin. New agent implementation starts at <code>ba6fdaf</code>.</p>
+<div class="footer"><span>Architecture</span><span>1 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>Stages and observed sequence</h2>
+<table class="tight"><colgroup><col style="width:18%"><col style="width:29%"><col style="width:25%"><col style="width:28%"></colgroup>
+<tr><th>Stage / role</th><th>Inputs and artifact</th><th>Gate</th><th>Failure / feedback</th></tr>
+<tr><td>Requirements</td><td>Issue and A1 → <code>spec.md</code></td><td>Explicit, testable ACs</td><td>Critical ambiguity → clarification stop</td></tr>
+<tr><td>Design</td><td>Validated spec and A2 → <code>design.md</code></td><td>Valid files/functions, all ACs mapped</td><td>Stop on failed constraints. Approach feedback returns here.</td></tr>
+<tr><td>Implementation</td><td>Spec/design and pinned source → <code>diff.patch</code> and detached SHA</td><td>Allowlisted edits and compile</td><td>Repair within attempt and time limits</td></tr>
+<tr><td>Testing</td><td>Exact candidate and AC map → <code>test_report.md</code></td><td>Trusted completion, 228 baseline IDs and generated coverage</td><td>Return to implementation within bounds</td></tr>
+<tr><td>Release</td><td>Authoritative test result → <code>pr.md</code> and PR URL</td><td>Same-fork head/base and current trusted CI</td><td>Pending, failure or stale metadata blocks release</td></tr>
+<tr><td>Independent review</td><td>Issue, head/diff, optional fixed-test result → <code>review.md</code></td><td>Fresh verdict and head-specific post</td><td>Route findings, stop after two rounds, human merge decision</td></tr>
+</table>
+<h3>Observed sequence · three separate traces</h3>
+<div class="figure">
+<p><b>Hosted issue run <a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603">44069611603</a></b><br>Issue comment → admission job → final evidence job. All 39 downstream jobs skipped.</p>
+<p><b>Hosted infrastructure CI <a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44280528872">44280528872</a></b><br>Draft PR #8 at <code>f6c727d</code> → earlier base verifier → <code>tinydb-tests</code> success.</p>
+<p><b>Local Docker verification, 18 November</b><br>Coordinator-controlled candidate → trusted supervisor → real workers → positive accepted, two negatives rejected. No hosted release followed.</p>
+</div>
+<h3>Designed continuation from an admitted issue</h3>
+<p>Spec → design → compile and freeze → independent test authority → exact-head fork PR → protected dispatch → dedicated App check → fresh reviewer → publisher posts verdict → human decision. The complete hosted sequence was not observed.</p>
+<div class="footer"><span>Architecture</span><span>2 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>2 · Design decisions</h2>
+<p>The ten original Nygard records preserve student-supplied choices, reasoning and trade-offs. The student accepted nine substantive decisions and deferred D6. Two retrospective implementation records document measured refinements on page 4.</p>
+<table><colgroup><col style="width:17%"><col style="width:26%"><col style="width:22%"><col style="width:23%"><col style="width:12%"></colgroup>
+<tr><th>Decision</th><th>Selected option</th><th>Rejected option</th><th>Main rationale</th><th>Status</th></tr>
+<tr><td>001 · D1<br>Role split</td><td>Four reasoning roles. Test and release control is deterministic.</td><td>One agent performs all work.</td><td>Separate reasoning responsibilities while reusing A1/A2.</td><td>Accepted</td></tr>
+<tr><td>002 · D2<br>Control</td><td>Fixed stage machine. Two review rounds and bounded retries.</td><td>Unrestricted model planner.</td><td>Make stage checks and execution budgets enforceable.</td><td>Accepted</td></tr>
+<tr><td>003 · D3<br>Handoff</td><td>Validated spec and design. Separate reviewer context.</td><td>Full conversation for every role.</td><td>Retain criteria and constraints while limiting reviewer anchoring.</td><td>Accepted</td></tr>
+<tr><td>004 · D4<br>State</td><td>Immutable hashed artifacts, unique attempts and run-to-PR reconciliation.</td><td>Actions cache as authority.</td><td>Keep failures traceable and avoid duplicated work.</td><td>Accepted</td></tr>
+<tr><td>005 · D5<br>Privileges</td><td>Restricted broker, isolated workers and separate publisher.</td><td>One shell agent with all credentials.</td><td>Contain untrusted code and keep write authority narrow.</td><td>Accepted</td></tr>
+<tr><td>006 · D6<br>Model</td><td>Defer exact hosted provider, model and effort.</td><td>Unverified default or mid-experiment model changes.</td><td>Entitlement, hard cap and controlled comparisons require evidence.</td><td>Deferred</td></tr>
+</table>
+<h3>Why the deterministic controller matters (D2)</h3>
+<p>Model proposals can be malformed, incomplete or affected by issue wording. A controller can reject an invalid prerequisite, enforce the stop for issue #7, and bound repeated test and review work. A failure preserves a checkpoint. It cannot choose a different budget or next task.</p>
+<p>The historical fixture supplies a concrete trace. The first implementation compiled, then four new tests failed. The bounded repair compiled and passed all 232 cases. Mock release and review evidence remains labelled throughout.</p>
+<div class="footer"><span>Design decisions</span><span>3 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>Decision register, continued</h2>
+<table><colgroup><col style="width:17%"><col style="width:26%"><col style="width:22%"><col style="width:23%"><col style="width:12%"></colgroup>
+<tr><th>Decision</th><th>Selected option</th><th>Rejected option</th><th>Main rationale</th><th>Status</th></tr>
+<tr><td>007 · D7<br>Stage checks</td><td>Deterministic checks, real execution, exact SHA and semantic checks.</td><td>Agent-reported success.</td><td>Verify commands, executed cases and commit identity.</td><td>Accepted</td></tr>
+<tr><td>008 · D8<br>Review</td><td>Fresh restricted reviewer with no push rights.</td><td>Same-conversation self-review.</td><td>Limit implementation anchoring and preserve authority boundaries.</td><td>Accepted</td></tr>
+<tr><td>009 · D9<br>Safety</td><td>Hard-cap prerequisite, explicit limits and fail-closed errors.</td><td>Prompt-only restraint and unlimited retries.</td><td>Require enforceable limits around untrusted inputs.</td><td>Accepted</td></tr>
+<tr><td>010 · D10<br>Trigger</td><td>Maintainer action with authorization and deduplication. Current trial is comment-only.</td><td>Any issue author can trigger.</td><td>Issue authorship confers no repository authority.</td><td>Accepted</td></tr>
+<tr><td>011 · D7<br>Evidence</td><td>Independent supervisor owns authoritative test results.</td><td>Candidate JUnit as authority.</td><td>A local false-success control crossed the earlier gate.</td><td>Retrospective*</td></tr>
+<tr><td>012 · D9<br>Consumption</td><td>Atomically consume a request-bound slot before provider HTTP.</td><td>Read-only grant lookup.</td><td>Bound concurrent callers by enforced authorization.</td><td>Retrospective*</td></tr>
+</table>
+<p class="small">* Retrospective records preserve earlier ADRs. The report synthesis and these refinements require final student review.</p>
+<h3>Why verdict ownership matters (D7)</h3>
+<p>Immutable tests are necessary. Their outcome must also arrive through a trusted execution boundary. The supervisor observes collection, case phases and completion separately from candidate output. A local success still leaves the hosted producer and issuer to be authenticated.</p>
+<h3>Why reviewer inputs matter (D8)</h3>
+<p>The reviewer gets the issue, diff and current source, plus its own bounded test result when requested. It receives no implementation reasoning or write tools. It can locate defects and route work back to the relevant stage. A fresh context can still share the same model’s blind spots, so seeded checks would measure usefulness.</p>
+<div class="footer"><span>Design decisions</span><span>4 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>Trade-offs and experiment E1</h2>
+<h3>What the controls cost</h3>
+<p><b>Explicit handoffs.</b> Structured artifacts cost more context and serialization than a shared chat. They allow the controller to validate each acceptance criterion and let the reviewer form findings independently. The selected role split also incurs more coordination overhead than a single planner.</p>
+<p><b>Fail-closed operation.</b> Durable evidence needs reconciliation and can stop a valid candidate when a check is delayed. The controls make that failure visible. The current publisher has an unresolved release recovery gap when a check arrives after polling ends.</p>
+<p><b>Model and budget.</b> D6 remains deferred. The implemented Responses trial adapter targets a specific model candidate, <code>gpt-6.1-sol</code>. This records an implementation choice without showing account support. The broker separates secrets and records usage when a provider returns it. The ledger reserves numerical limits. A provider-enforced hard cap and secret availability remain <b>not verified</b>.</p>
+<h3>3 · E1 — D7 test evidence authority</h3>
+<table><colgroup><col style="width:23%"><col style="width:41%"><col style="width:36%"></colgroup>
+<tr><th>Variant</th><th>Actual procedure</th><th>Observation</th></tr>
+<tr><td>A<br>Candidate report</td><td>Historical local test against the previous validator. The candidate-controlled outcome asserted success without completed tests.</td><td>One false pass. The gate reported 229 successes and zero assertions ran.</td></tr>
+<tr><td>B<br>Trusted supervisor</td><td>Run a positive case and two negative controls under real Docker. Compare test count, worker observations and verdict.</td><td>Positive 228+4 passed. Unfixed defect and forged verdict both rejected. Five observed containers.</td></tr>
+</table>
+<p><b>Change made.</b> Move result ownership outside the candidate process. Bind independent evidence to source, head, environment and completed test case inventory. Use candidate XML as a diagnostic artifact only. The protected workflow proposal exports a bounded summary.</p>
+<p class="small">E1 is a retrospective comparison of authority designs. The old and new negative controls differ. No identical-input effect size, hosted exploit reproduction or overall detection rate is inferred.</p>
+<div class="footer"><span>Design trade-offs and experiments</span><span>5 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>Experiment E2 and interpretation</h2>
+<h3>E2 — D9 one-use provider authorization</h3>
+<p>The unit of analysis is a concurrent invocation using the same locally reserved one-call slot. The dependent measure is whether that invocation enters the fake provider. Both comparison arms use three callers and a provider double. No billable traffic was sent.</p>
+<table><colgroup><col style="width:23%"><col style="width:41%"><col style="width:36%"></colgroup>
+<tr><th>Variant</th><th>Actual procedure</th><th>Observation</th></tr>
+<tr><td>A<br>Read-only grant</td><td>Run three concurrent copies with one valid grant at the same run, attempt and phase.</td><td><b>3/3</b> reached the fake provider. A valid grant did not bound the number of invocations.</td></tr>
+<tr><td>B<br>Atomic consumption</td><td>Run the corresponding three-copy test through the reference consumption service and atomic ref double.</td><td><b>1/3</b> reached the fake provider. Two stopped after attempted consumption.</td></tr>
+</table>
+<p><b>Change made.</b> Consume a request-bound slot before provider HTTP, verify a fresh invocation receipt and retain the reservation on uncertain responses. The controller fails closed if the external service is unavailable.</p>
+<p><b>What E2 establishes.</b> The local protocol distinguishes reusable validation from one-use authorization under the tested concurrency schedule. GitHub ref behavior, hosted service setup, real latency, token savings and costs remain unmeasured.</p>
+<h3>Reproducibility and scope</h3>
+<ul>
+<li>E1 sources are the archived local review and the recorded Docker run <code>20261118T084516Z</code>. The original TinyDB pin is shared by the experiments. The independent authority run uses <code>f6c727d</code>.</li>
+<li>E2 sources are the archived before/after results and <code>workflow/tests/test_consumption.py</code>. Hosted provider configuration is deliberately disabled.</li>
+<li>Historical handoff and reviewer-prompt comparison proposals were never executed. Reviewer accuracy and hosted model trade-offs cannot be inferred from these two architectural controls.</li>
+</ul>
+<div class="callout"><b>What changed across both experiments.</b> Verification now owns the state it attests. The supervisor owns test completion. The authorization service owns consumption. That reduces dependence on output supplied by the component under evaluation.</div>
+<div class="footer"><span>Decision experiments</span><span>6 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>4 · Results</h2>
+<table class="tight"><colgroup><col style="width:30%"><col style="width:37%"><col style="width:33%"></colgroup>
+<tr><th>Stage</th><th>Hosted issue passed / attempted</th><th>Historical local fixture</th></tr>
+<tr><td>Requirements</td><td>0/0 · Not measured</td><td>1/1</td></tr>
+<tr><td>Design</td><td>0/0 · Not measured</td><td>1/1</td></tr>
+<tr><td>Implementation</td><td>0/0 · Not measured</td><td>2/2 compiles</td></tr>
+<tr><td>Testing</td><td>0/0 · Not measured</td><td>1/2 actual test runs</td></tr>
+<tr><td>Release</td><td>0/0 · Not measured</td><td>1/1 mocked</td></tr>
+<tr><td>Independent review</td><td>0/0 · Not measured</td><td>1/1 mocked</td></tr>
+</table>
+<p class="small">Requirements/design in the fixture use model doubles. The denominator counts attempted stages, excluding skipped jobs. Latest local suite: 316 controller + 228 TinyDB baseline tests. Docker: 3/3 expected scenario outcomes and five container observations.</p>
+<table class="tight"><colgroup><col style="width:42%"><col style="width:28%"><col style="width:30%"></colgroup>
+<tr><th>Private oracle</th><th>Pinned original</th><th>Reference control</th></tr>
+<tr><td>#3 duplicate removal</td><td>0/4</td><td>4/4</td></tr>
+<tr><td>#4 regex whole match</td><td>1/4</td><td>4/4; baseline 227/228</td></tr>
+<tr><td>#5 pop document</td><td>0/4</td><td>4/4</td></tr>
+<tr><td>#6 exact type</td><td>0/4</td><td>4/4</td></tr>
+<tr><td>#7 clarification process</td><td>Not applicable</td><td>3/3 correct stop</td></tr>
+</table>
+<p>Private corpus: 19 frozen tests outside Git. Hosted candidate acceptance: <b>Not executed</b>. #7’s invented-approval control passed 0/3. The frozen #4 reference conflicts with one original regression test.</p>
+<p><b>Review and readiness.</b> Model-assisted security reviews found untrusted test verdicts and repeated provider authorization. The hosted reviewer-agent’s detections, misses and false positives were <b>not measured</b>. The fixture’s <code>MERGE_READINESS_CHECK</code> records automated readiness false, human decision pending and merge authorization false.</p>
+<p class="small"><b>Genuine links.</b> <a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603">Admission-only</a> · <a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44280528872">Legacy CI</a> · <a href="https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/pull/8">Draft infrastructure PR #8</a>. Posted reviewer-agent URL: <b>Not available</b>.</p>
+<div class="footer"><span>Results</span><span>7 / 8</span></div>
+</section>
+
+<section class="sheet">
+<header>Assignment 3 · 2025811002</header>
+<h2>5 · Hindsight</h2>
+<p>If starting again, specify verdict ownership and release provenance before implementing the first test gate. Require a positive case and a negative control at each trust boundary. The deployment sequence should also separate a no-spend hosted verification check from the first issue-agent trial. This would surface GitHub event and check semantics before provider setup or model tuning.</p>
+<p>The most useful evidence came from a failure with an observable boundary. Candidate XML was insufficient even with immutable test files. A one-time budget allocation was insufficient when individual calls could reuse it. A successful CI job with a real URL was insufficient to establish deployment of the new verifier.</p>
+<h3>6 · Limitations and threats to validity</h3>
+<ol>
+<li><b>Hosted validity.</b> CI run 44280528872 used the previous base verifier. The new protected workflow/check issuer and complete issue-to-review path were not verified. The latest security patch remains local and uncommitted.</li>
+<li><b>Experimental controls.</b> E1 changes both architecture and the forged-result mechanism across arms. E2 uses service/ref/provider doubles. Neither estimates production risk or provider behavior.</li>
+<li><b>Small sample and oracle conflict.</b> The five tasks are from a single repository. #4 has a pinned regression conflict and #7 intentionally lacks a product behavior oracle. Reference tests are not independent hosted agent fixes.</li>
+<li><b>Reviewer evaluation.</b> Five local seeded diff examples are available. Hosted seeded reviews were not executed. No true/false-positive or missed-defect count is available. A fresh context can still share model bias.</li>
+<li><b>Operational dependencies.</b> Dispatch authorization, issuer provenance, per-PR meaning of commit-scoped checks, and late-release recovery remain open. Docker and dependency trust also limit inference from one host.</li>
+<li><b>Spend and audit.</b> No paid hosted model usage was observed. Coordinator tokens, account secret availability and provider hard-cap enforcement were not verified. Both production configurations remain disabled.</li>
+</ol>
+<h3>Evidence and authorship</h3>
+<p>Repository paths include <code>architecture/decisions/</code>, <code>architecture/views/</code>, <code>experiment/variants.md</code>, <code>results/runs.md</code>, <code>results/results.csv</code> and the fixture readiness record. The recorded Docker summaries are redacted. Private acceptance payloads stay outside the fork.</p>
+<p>Codex substantially assisted with project research, code, tests, debugging, reviews and document production. The original student decisions and supplied reasons are preserved separately in <code>architecture/STUDENT_REVIEW.md</code>. Final student review is pending for the synthesized report and retrospective reasoning.</p>
+<div class="footer"><span>Hindsight and limitations</span><span>8 / 8</span></div>
+</section>
+</body>
+</html>
