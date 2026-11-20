@@ -1,1 +1,32 @@
-run_id,experiment,variant,issue_url,run_url,base_sha,head_sha,pr_url,review_url,stage,status,hidden_passed,hidden_total,review_tp,review_fp,review_fn,elapsed_seconds,input_tokens,output_tokens,cached_input_tokens,cost,currency,human_decision
+record,scope,stage,status,passed,attempted,hidden_passed,hidden_total,issue_url,run_url,pr_url,review_url,input_tokens,output_tokens,actual_cost_usd,notes
+44069611603,hosted_issue,Requirements,Not measured,0,0,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603,,,,,,All downstream jobs skipped
+fixture-1,local_fixture,Requirements,Measured,1,1,,,,,,,,,,Real compile and pytest for implementation/testing. Model and GitHub use test doubles.
+44069611603,hosted_issue,Design,Not measured,0,0,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603,,,,,,All downstream jobs skipped
+fixture-1,local_fixture,Design,Measured,1,1,,,,,,,,,,Real compile and pytest for implementation/testing. Model and GitHub use test doubles.
+44069611603,hosted_issue,Implementation,Not measured,0,0,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603,,,,,,All downstream jobs skipped
+fixture-1,local_fixture,Implementation,Measured,2,2,,,,,,,,,,Real compile and pytest for implementation/testing. Model and GitHub use test doubles.
+44069611603,hosted_issue,Testing,Not measured,0,0,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603,,,,,,All downstream jobs skipped
+fixture-1,local_fixture,Testing,Measured,1,2,,,,,,,,,,Real compile and pytest for implementation/testing. Model and GitHub use test doubles.
+44069611603,hosted_issue,Release,Not measured,0,0,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603,,,,,,All downstream jobs skipped
+fixture-1,local_fixture,Release,Measured,1,1,,,,,,,,,,Real compile and pytest for implementation/testing. Model and GitHub use test doubles.
+44069611603,hosted_issue,Independent review,Not measured,0,0,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603,,,,,,All downstream jobs skipped
+fixture-1,local_fixture,Independent review,Measured,1,1,,,,,,,,,,Real compile and pytest for implementation/testing. Model and GitHub use test doubles.
+44280528872,hosted_legacy_ci,Standalone CI,Job succeeded,1,1,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44280528872,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/pull/8,,,,,Older base verifier
+host-docker,local_docker,Expected scenario outcomes,Measured,3,3,,,,,,,,,,Five observed containers
+latest-local,local_pytest,Controller,Measured,316,316,,,,,,,,,,
+latest-local,local_pytest,TinyDB baseline,Measured,228,228,,,,,,,,,,
+validation-03,private_controls,original,Measured,,,0,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/3,,,,,,,Archived controlled fixture
+validation-03,private_controls,reference,Measured,,,4,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/3,,,,,,,Archived controlled fixture
+unexecuted,hosted_candidate,Private acceptance,Not executed,,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/3,,,,,,,
+validation-03,private_controls,original,Measured,,,1,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/4,,,,,,,#4 reference baseline 227/228
+validation-03,private_controls,reference,Measured,,,4,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/4,,,,,,,#4 reference baseline 227/228
+unexecuted,hosted_candidate,Private acceptance,Not executed,,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/4,,,,,,,
+validation-03,private_controls,original,Measured,,,0,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/5,,,,,,,Archived controlled fixture
+validation-03,private_controls,reference,Measured,,,4,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/5,,,,,,,Archived controlled fixture
+unexecuted,hosted_candidate,Private acceptance,Not executed,,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/5,,,,,,,
+validation-03,private_controls,original,Measured,,,0,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/6,,,,,,,Archived controlled fixture
+validation-03,private_controls,reference,Measured,,,4,4,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/6,,,,,,,Archived controlled fixture
+unexecuted,hosted_candidate,Private acceptance,Not executed,,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/6,,,,,,,
+validation-03,private_controls,reference,Measured,,,3,3,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/7,,,,,,,#7 clarification process only
+unexecuted,hosted_candidate,Private acceptance,Not executed,,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/issues/7,,,,,,,
+unmeasured,hosted_agent_review,Reviewer accuracy,Not measured,,,,,,,https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/pull/8,,,,,No posted reviewer-agent result. No TP/FP/FN.

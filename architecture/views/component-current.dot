@@ -1,0 +1,23 @@
+digraph components {
+  graph [rankdir=TB, bgcolor=white, pad=0.22, nodesep=0.26, ranksep=0.38, fontname="DejaVu Sans"];
+  node [shape=box, style="rounded,filled", margin="0.15,0.10", color="#365e72", fillcolor="#eef5f7", fontname="DejaVu Sans", fontsize=12];
+  edge [color="#365e72", fontname="DejaVu Sans", fontsize=10];
+  issue [label="GitHub issue\nMaintainer authorization"];
+  controller [label="Trusted stage controller\nGates · checkpoints · call/time bounds", fillcolor="#d5eaee"];
+  roles [label="Model broker · provider credential\nRequirements · Design · Implement/Test"];
+  reviewer [label="Independent reviewer\nFresh issue / diff / head · no push"];
+  artifacts [label="Hashed artifacts · ledger\nRun / attempt / source identity"];
+  supervisor [label="Trusted test supervisor\nPinned tests · authority receipt"];
+  candidate [label="Candidate in Docker\nRead-only source · no network or secrets"];
+  publisher [label="Trusted publisher · fork writes\nFreeze exact commit · PR · post review"];
+  app [label="Protected verifier and proposed Check App\nExact head / base · deployment pending", style="rounded,filled,dashed"];
+  human [label="Human merge or close", fillcolor="#d5eaee"];
+  issue -> controller;
+  controller -> {roles reviewer artifacts supervisor publisher};
+  roles -> controller [label="inert proposals", constraint=false];
+  supervisor -> candidate [dir=both, label="bounded protocol"];
+  reviewer -> publisher [label="verdict"];
+  publisher -> app [label="verification request"];
+  app -> publisher [label="bound result",constraint=false];
+  publisher -> human;
+}

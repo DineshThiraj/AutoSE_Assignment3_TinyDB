@@ -1,0 +1,11 @@
+--- a/tinydb/table.py
++++ b/tinydb/table.py
+@@ -270,7 +270,7 @@
+         # Then, only if the document matches the query, convert it
+         # to the document class and document ID class.
+         docs = [
+-            self.document_class(doc, self.document_id_class(doc_id))
++            Document(doc, self.document_id_class(doc_id))
+             for doc_id, doc in self._read_table().items()
+             if cond(doc)
+         ]

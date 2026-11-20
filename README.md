@@ -1,43 +1,46 @@
-# Assignment 3 — TinyDB issue-to-reviewed-PR workflow
+# TinyDB issue-to-reviewed-PR workflow
 
-Fork: https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB
+**Autonomous Software Engineering Assignment 3 · 2025811002**
 
-Upstream: msiemens/tinydb. Pinned source: `edff96aeb2616402e9489d46e90a592c05565621`.
-Design-first commit: `67c9b3c4286f598d5d415fb60433870cf63035a8`, directly parented by that pin. It contains documentation/reuse only and precedes new workflow implementation. Original TinyDB source and tests are retained.
+[Assignment fork](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB) of `msiemens/tinydb` at pin `edff96aeb2616402e9489d46e90a592c05565621`. The [design-first commit](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/commit/67c9b3c4286f598d5d415fb60433870cf63035a8) records the student-reviewed design. Agent implementation starts at `ba6fdaf`. Original TinyDB source and baseline tests are retained.
 
-Status: local controller and fixture integration implemented; hosted execution, model configuration, protected-main setup, actual issues/PRs/reviews and experiments remain pending. This is not a completed submission. See `results/runs.md` for genuine hosted evidence; local fixture results are kept separately. No report, demonstration or final submission file is claimed.
+[Report (PDF)](report.pdf) · [Demo video (MP4)](demo.mp4) · [Demo script and capture plan](results/DEMO_SCRIPT.md) · [Results and run links](results/runs.md) · [Submission checklist](results/SUBMISSION_CHECKLIST.md)
 
-The student supplied nine accepted architecture choices and deferred exact provider/model/effort in D6. Read `architecture/STUDENT_REVIEW.md`, the ten Nygard records and initial views. The proposed sequence is not a real-run sequence.
+## Architecture and stage checks
 
-## Workflow and gates
-
-`.github/workflows/autose.yml` starts on an authorized maintainer's `autose` label or exact `/autose` issue comment. PR comments, bots, outsiders, duplicate issue PRs, unknown permissions and missing setup evidence stop before model calls. The trusted controller freezes the issue/source and enforces the six stages. Publication is restricted to this fork, never main/upstream. The workflow has no merge operation.
+Four reasoning roles share six controlled SDLC stages. Requirements reuses the A1 skill. Design reuses the A2 architecture. The implementer proposes source and tests. A fresh reviewer sees the issue, exact-head source, diff and its own optional fixed-test result. It receives neither the implementation conversation nor write tools. The controller, not the model, controls transitions and retry limits. See the [component view](architecture/views/component-current.svg), [observed sequence](architecture/views/sequence-observed.md), [current stage map](architecture/views/stage-map-current.md), and [ADR summary](architecture/decisions/README.md).
 
 | Stage | Artifact | Gate |
 | --- | --- | --- |
-| Requirements | spec.md + all three original A1 documents | Explicit-scope readiness, structured testable ACs and semantic validation; critical ambiguity stops needs_clarification |
-| Design | design.md | Actual files/functions, every AC mapped, five A2 constraints assessed |
-| Implementation | diff.patch + compile log | Allowlisted regular-file edits and fixed compile success |
-| Testing | test_report.md + JUnit | Added asserted test per AC; all 228 original identifiers retained and original/new tests pass |
-| Release | pr.md + actual PR/CI URLs | Open fork PR and successful trusted CI at its exact head SHA |
-| Independent Review | review.md + posted review URL | Fresh restricted context; actual posted review; approval or terminal two-round exhaustion |
+| Requirements | `spec.md`, A1 documents | Explicit approval and testable criteria. Critical ambiguity stops for clarification. |
+| Design | `design.md` | Real files and functions, every criterion mapped, A2 constraints checked. |
+| Implementation | `diff.patch`, immutable candidate SHA | Allowlisted content and fixed compile command. |
+| Testing | `test_report.md`, authority receipt | Independent execution checks 228 original test identifiers and generated coverage. A bounded repair may return to implementation. |
+| Release | `pr.md`, PR and check identity | Exact candidate head and base, same-fork PR, required trusted CI. Missing or pending evidence blocks release. |
+| Independent review | `review.md`, intended posted review evidence | Fresh context, bounded review rounds and revalidation at the posted head. Only a human can decide to merge. |
 
-Four fresh reasoning roles use inert bounded source inputs. Only the broker sees a provider key. Target code runs in disposable no-secret/no-network containers; only a trusted publisher has repository write authority. The reviewer receives issue/diff/latest source and its own optional fixed-test result, with no edit/push tools or implementation reasoning. See `workflow/README.md` for exact commands, budgets, recovery and limitations.
+The broker alone receives the model key reference. Execution uses read-only GitHub access and isolated Docker; publisher and ledger writes are scoped to their functions. D6 defers selecting a deployed provider, model and reasoning effort. The scoped Responses adapter targets `gpt-6.1-sol` as a candidate and budgets calls, tokens and USD conservatively. Availability, deployment approval, the repository secret and a provider-enforced hard spending cap are **not verified**. Per-run usage would be recorded by the broker. No paid hosted model calls were observed and total tokens for coordinator AI assistance are **not measured**.
 
-## Hosted prerequisites — currently unresolved
+## Trigger and current operating status
 
-Enable Issues; bootstrap main from the preserved reviewed lineage; configure actual PR/check/no-force/no-delete/no-bypass rules; enable the necessary Actions settings. Verify current actor permissions and GitHub token review/CI behavior. Do not reset master or force-push. Current administrative route and shell GitHub access are unavailable. See `workflow/SETUP_REQUIRED.md`.
+The generic workflow listens for a maintainer-applied `autose` label or an issue comment. The paid trial guard in this branch accepts only the authorized maintainer’s exact comment `/autose` on issue **#3**, on attempt one and within an approved trial window. It rejects PR comments, labels for the paid trial, bots, unknown permissions, and replayed or already-published work. This documents the intended procedure after approved deployment. Keep both `workflow/config/live.json` and `workflow/config/test-authority.json` disabled for the submission.
 
-No provider/model/effort is selected. The optional Responses adapter is implementation support only; it is not evidence that any model is available or any provider offers the required hard cap. `workflow/config/live.json` is disabled. Before enabling it, verify supported exact configuration and provider-enforced hard cap, configure `AUTOSE_MODEL_API_KEY` securely as a repository secret, and obtain separate explicit paid authorization with an amount and expiry. Configuration booleans alone do not verify external billing controls. Never paste secret values into chat.
+The public fork has protected `main`, five open issues and an open draft [infrastructure PR #8](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/pull/8). [Hosted issue run 44069611603](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44069611603) ran admission and finalization only. [Hosted CI run 44280528872](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/actions/runs/44280528872) passed under the older base verifier. The new protected verifier and dedicated check issuer have no verified hosted deployment. No issue-to-reviewed-PR run or posted reviewer-agent result was found. The draft infrastructure PR is outside issue-candidate scope.
 
-## Local validation and AI assistance
+A person must evaluate the exact PR head, verify testing and review evidence, and choose merge, revision, or close. Keep PR #8 in draft pending separately authorized infrastructure review. The controller has no merge operation. The [draft branch](https://github.com/DineshThiraj/AutoSE_Assignment3_TinyDB/tree/a3/d6-issue3-trial) contains the recorded Docker-tested source revision. [Known deployment and release limits](results/evidence_inventory.md).
 
-Use Python 3.12 with pytest 9.2.0 and PyYAML 6.0.3. From this repository:
+## Reproduce local checks
+
+Use Python 3.12, pytest 9.2.0 and PyYAML 6.0.3 from an existing trusted environment. From the repository root:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=workflow python -m pytest -c /dev/null -o addopts= -p no:cacheprovider workflow/tests
+PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=.:workflow \
+  python -m pytest -c /dev/null -o addopts= -p no:cacheprovider -q workflow/tests tests
+git diff --check
 ```
 
-The integration test uses actual pinned TinyDB source and real compile/pytest processes. Model responses, publication, CI and reviews are deterministic test doubles, explicitly labelled fixtures. It deliberately fails an ineffective patch, then passes a bounded repair with 228 original plus four new test cases. These are not hosted Actions or independent model-review results.
+Recorded results are 316 controller and 228 TinyDB tests. The historical local flow exercises 232 real tests after a bounded repair using mocked model and GitHub boundaries. The recorded host Docker run independently accepted a positive candidate and rejected two negative cases under real containers. Its evidence is summarized in [Docker validation](results/docker-observed.json). [Private evaluation metadata](experiment/hidden_tests/README.md) describes the frozen corpus kept outside this repository. [Decision experiments](experiment/variants.md) compare local controls. Seeded reviewer examples are [local fixtures](experiment/seeded_prs/README.md) with no scored reviewer outcomes.
 
-Codex substantially assisted with source verification, planning, document formatting, diagrams, controller/workflow code, prompts, tests and debugging. Student choices/reasons are transcribed from the user's supplied review, retaining the original “suggested reason” labels; no independent claim of exclusive student authorship is made. Human review of the generated implementation remains pending. A1/A2 files are copied unchanged with provenance in `REUSE_RECORD.md`.
+## AI assistance and student review
+
+Codex substantially assisted with research and source verification, architecture drafting and formatting, controller/workflow code, prompts, tests, debugging, model-based security reviews, and the submission materials. The student’s original decisions and supplied reasoning are preserved in [STUDENT_REVIEW.md](architecture/STUDENT_REVIEW.md). The two retrospective records and this report synthesize evidence and require the student’s final review. Local model-based reviews do not count as external human audits or posted reviewer-agent results. A1 and A2 reuse provenance is in [REUSE_RECORD.md](REUSE_RECORD.md).

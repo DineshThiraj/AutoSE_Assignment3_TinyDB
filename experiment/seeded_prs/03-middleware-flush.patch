@@ -1,0 +1,12 @@
+--- a/tinydb/middlewares.py
++++ b/tinydb/middlewares.py
+@@ -133,8 +133,7 @@
+         if self._closed:
+             return
+
+-        # Flush potentially unwritten data
+-        self.flush()
++        # Close the underlying storage.
+
+         # Let the storage clean up too
+         self.storage.close()
